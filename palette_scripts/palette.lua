@@ -112,7 +112,12 @@ function Palette:CreateParticleEmitter(texturePath, position)
             Arc = 360,
             Size = Vector.One,
             DirectionMode = "Default",
-            RectangleEmitFrom = "Area"
+            EmitFrom = "Area",
+            Vertices = {
+                Vector(-50, 30),
+                Vector(50, 30),
+                Vector(0, -60)
+            }
         },
 
         _IsDestroyed = false,

@@ -7,6 +7,10 @@ local PaletteUtils = include("palette_scripts.palette_utils")
 ---@param orientation number
 ---@return Vector
 function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
+    if shape.EmitFrom ~= "Area" and shape.EmitFrom ~= "Edge" then
+        error("Invalid EmitFrom: " .. shape.EmitFrom)
+    end
+
     if shape.Type == "Point" then
         return emitterPosition
     elseif shape.Type == "Circle" then
@@ -25,7 +29,7 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
         local randX = PaletteUtils.GetRandomFloat(-shape.Size.X / 2, shape.Size.X / 2)
         local randY = PaletteUtils.GetRandomFloat(-shape.Size.Y / 2, shape.Size.Y / 2)
 
-        if shape.RectangleEmitFrom == "Edge" then
+        if shape.EmitFrom == "Edge" then
             -- Weight each pair of edges by its length for uniform perimeter sampling.
             local choice = PaletteUtils.GetRandomFloat(0, shape.Size.X + shape.Size.Y)
 
@@ -34,13 +38,57 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
             else
                 randX = PaletteUtils.GetRandom() < 0.5 and -shape.Size.X / 2 or shape.Size.X / 2
             end
-        elseif shape.RectangleEmitFrom ~= nil and shape.RectangleEmitFrom ~= "Area" then
-            error("Unknown RectangleEmitFrom: " .. tostring(shape.RectangleEmitFrom))
         end
 
         local offset = Vector(randX, randY):Rotated(orientation)
 
         return emitterPosition + offset
+    elseif shape.Type == "Triangle" then
+        if #shape.Vertices < 3 then
+            error("A particle emitter must have at least 3 vertices!")
+        end
+        
+        local a, b, c = shape.Vertices[1], shape.Vertices[2], shape.Vertices[3]
+
+        if shape.EmitFrom == "Edge" then
+            local lengthAB = (a - b):Length()
+            local lengthBC = (b - c):Length()
+            local lengthCA = (c - a):Length()
+            local perimeter = lengthAB + lengthBC + lengthCA
+            local u = PaletteUtils.GetRandom()
+
+            local choice = PaletteUtils.GetRandomFloat(0, perimeter)
+            local startVertex, endVertex
+
+            if choice < lengthAB then
+                startVertex = a
+                endVertex = b
+            elseif choice < lengthAB + lengthBC then
+                startVertex = b
+                endVertex = c
+            else
+                startVertex = c
+                endVertex = a
+            end
+
+            local point = startVertex + u * (endVertex - startVertex)
+            point = point:Rotated(orientation)
+
+            return emitterPosition + point
+        else
+            local u, v = PaletteUtils.GetRandom(), PaletteUtils.GetRandom()
+
+            -- Uniform triangle sampling (baycentric coordinates)
+            if u + v > 1 then
+                u = 1 - u
+                v = 1 - v
+            end
+
+
+            local point =  a + u * (b - a) + v * (c - a)
+            local offset = point:Rotated(orientation)
+            return emitterPosition + offset
+        end
     else
         error("Unsupported particle shape: " .. shape.Type)
     end

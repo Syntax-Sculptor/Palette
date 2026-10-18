@@ -19,9 +19,9 @@
 ---@alias InterpolationMode "Blend"|"Fixed"
 ---@alias ColorOverLifetimeMode "Gradient"|"TwoGradients"
 ---@alias CurveMode "Single"|"TwoCurves"
----@alias PaletteShapeType "Point"|"Circle"|"Rectangle"
+---@alias PaletteShapeType "Point"|"Circle"|"Rectangle"|"Triangle"
 ---@alias DirectionMode "Radial"|"Default"
----@alias RectangleEmitFrom "Area"|"Edge"
+---@alias EmitFrom "Area"|"Edge"
 
 ---@class PaletteGradient
 ---@field ColorKeys PaletteGradientKey[]
@@ -76,4 +76,5 @@
 ---@field Arc number Default: 360
 ---@field Size Vector Default: (1, 1)
 ---@field DirectionMode DirectionMode Default: "Default"
----@field RectangleEmitFrom RectangleEmitFrom Default: "Area"
+---@field EmitFrom EmitFrom Default: "Area"
+---@field Vertices Vector[] Default: {Vector(-50, 30), Vector(50, 30), Vector(0, -60)}
