@@ -2,12 +2,11 @@ local GAME_FRAMES_PER_SECOND = 30
 
 local PaletteUtils = include("palette_scripts.palette_utils")
 local PaletteGradient = include("palette_scripts.palette_gradient")
-local Vector3 = include("palette_scripts.vector3")
 local PaletteShape = include("palette_scripts.palette_shape")
 
 ---@class ParticleEmitter This class defines a `ParticleEmitter`, which is responsible for creating particles and managing them.
 ---@field IsWorldSpace boolean Whether the emitted particles are rendered on the world space or directly onto your screen. Default: True
----@field Position Vector | Vector3 The position of the emitter. This is where all spawned particles originate from. Default: (0, 0, 0)
+---@field Position Vector The position of the emitter. This is where all spawned particles originate from. Default: (0, 0)
 ---@field MaxParticles integer The maximum amount of particles that can be active at a given time. Default: 100
 ---@field Lifetime PaletteMinMaxInteger | number How many frames a particle exists until it's destroyed. Default: 60
 ---@field ParticleRate number How many particles are emitted over the course of one second. Default: 5
@@ -15,7 +14,7 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field StartColor PaletteMinMaxKColor | KColor The initial color for spawned particles. If `ColorOverLifetime.Enabled` is set to `true`, the gradient is multiplied by this.
 ---@field VelocityOverLifetime PaletteVelocityOverLifetime Dictates how particles move over its lifespan.
 ---@field StartSpeed PaletteMinMaxFloat | number The initial speed of the particle when spawned. Default: 2
----@field StartDirection Vector | Vector3 The default direction of the particle. Default: (0, -1, 0)
+---@field StartDirection Vector The default direction of the particle. Default: (0, -1)
 ---@field StartRotation number | PaletteMinMaxFloat The initial rotation for each particle. Default: 0
 ---@field Orientation number The emitter's rotation, in degrees. This is solely used to handle how particles move out from the emitter as opposed to changing the rotation of the particle's sprite. To change the sprite's actual rotation, use `StartRotation`. Default: 0
 ---@field StartSize Vector | PaletteMinMaxVector The initial scale of spawned particles. Default: (1, 1)
@@ -180,15 +179,10 @@ function ParticleEmitter:_Render()
     for _, particle in ipairs(self._Particles) do
         ---@type Vector
         local renderPos
-        local pos2D = Vector(particle.Position.X, particle.Position.Y)
-
         if self.IsWorldSpace then
-            local worldScreenPos = Isaac.WorldToScreen(pos2D)
-            -- Applying Z projection here. Might be useful later to give the illusion of 3D
-            -- particles.
-            renderPos = Vector(worldScreenPos.X, worldScreenPos.Y - particle.Position.Z)
+            renderPos = Isaac.WorldToScreen(particle.Position)
         else
-            renderPos = pos2D
+            renderPos = particle.Position
         end
 
         local scaledWidth, scaledHeight = 
@@ -271,15 +265,14 @@ end
 ---@param particle Particle
 function ParticleEmitter:_InitializeParticle(particle)
     local startSize = PaletteUtils.SampleVector(self.StartSize)
-    local emitterPosition = Vector3.fromVector(self.Position)
+    local emitterPosition = Vector(self.Position.X, self.Position.Y)
     local spawnPosition = PaletteShape.GetSpawnPosition(
         self.Shape,
         emitterPosition,
         self.Orientation
     )
 
-    local defaultDirection = Vector3.fromVector(self.StartDirection)
-    defaultDirection:Normalize():RotateZ(self.Orientation)
+    local defaultDirection = self.StartDirection:Normalized():Rotated(self.Orientation)
 
     local finalDirection = PaletteShape.GetDirection(
         self.Shape,
@@ -292,12 +285,10 @@ function ParticleEmitter:_InitializeParticle(particle)
         self.DirectionSpread
     )
 
-    finalDirection:RotateZ(spreadAngle)
+    finalDirection = finalDirection:Rotated(spreadAngle)
 
     particle.SpawnPosition = spawnPosition
-    particle.Position = spawnPosition:Copy()
-    particle.SpawnPosition = spawnPosition
-    particle.Position = particle.SpawnPosition:Copy()
+    particle.Position = Vector(spawnPosition.X, spawnPosition.Y)
     particle.Velocity = finalDirection * PaletteUtils.SampleFloat(self.StartSpeed)
     particle.FrameCount = 0
     particle.Scale = startSize
@@ -323,52 +314,29 @@ function ParticleEmitter:_GetParticleVelocity(particle)
 
     -- Linear Velocity Logic
 
-    local linearVelocity = Vector3.fromVector(velocityOverLifetime.LinearVelocity)
+    local linearVelocity = velocityOverLifetime.LinearVelocity
 
     if velocityOverLifetime.Space == "Local" then
-        linearVelocity:RotateZ(self.Orientation)
+        linearVelocity = linearVelocity:Rotated(self.Orientation)
     end
 
     local newVelocity = (particle.Velocity + linearVelocity) * velocityOverLifetime.SpeedModifier
 
     -- Orbital Velocity Logic
 
-    local orbitalOffset = Vector3.fromVector(velocityOverLifetime.OrbitalOffset)
+    local orbitalOffset = velocityOverLifetime.OrbitalOffset
 
     if velocityOverLifetime.Space == "Local" then
-        orbitalOffset:RotateZ(self.Orientation)
+        orbitalOffset = orbitalOffset:Rotated(self.Orientation)
     end
 
     local center = particle.SpawnPosition + orbitalOffset
     local relativePos = particle.Position - center
 
-    if velocityOverLifetime.Space == "Local" then
-        relativePos:RotateZ(-self.Orientation)
-    end
+    local orbitalRotation = velocityOverLifetime.OrbitalVelocity * velocityOverLifetime.SpeedModifier
 
-    -- Orbital X: Rotate in the YZ plane.
-    local orbitalX = velocityOverLifetime.OrbitalVelocity.X * velocityOverLifetime.SpeedModifier
-
-    if orbitalX ~= 0 then
-        relativePos:RotateX(orbitalX)
-    end
-
-    -- Orbital Y: Rotate in the XZ plane.
-    local orbitalY = velocityOverLifetime.OrbitalVelocity.Y * velocityOverLifetime.SpeedModifier
-
-    if orbitalY ~= 0 then
-        relativePos:RotateY(orbitalY)
-    end
-
-    -- Orbital Z: Rotate in the XY plane.
-    local orbitalZ = (velocityOverLifetime.OrbitalVelocity.Z or 0) * velocityOverLifetime.SpeedModifier
-
-    if orbitalZ ~= 0 then
-        relativePos:RotateZ(orbitalZ)
-    end
-
-    if velocityOverLifetime.Space == "Local" then
-        relativePos:RotateZ(self.Orientation)
+    if orbitalRotation ~= 0 then
+        relativePos = relativePos:Rotated(orbitalRotation)
     end
 
     local orbitalVelocity = center + relativePos - particle.Position

@@ -4,8 +4,8 @@
 -- `include`/`require` on this file; it should be detected on its own.
 
 ---@class Particle This class defines a singular particle instance emitted from a ParticleEmitter.
----@field Position Vector3
----@field Velocity Vector3
+---@field Position Vector
+---@field Velocity Vector
 ---@field FrameCount integer How many update frames the particle has elapsed.
 ---@field Lifetime integer How many update frames until the particle is removed.
 ---@field Scale Vector The particle's scale multiplier. Setting it to `Vector(1, 1)` will use the sprite's original dimensions.
@@ -14,14 +14,14 @@
 ---@field Color KColor
 ---@field StartColor KColor
 ---@field LerpFactor number
----@field SpawnPosition Vector3
+---@field SpawnPosition Vector
 
 ---@alias InterpolationMode "Blend"|"Fixed"
 ---@alias ColorOverLifetimeMode "Gradient"|"TwoGradients"
 ---@alias CurveMode "Single"|"TwoCurves"
----@alias PaletteShapeType "Point"|"Circle"|"Rectangle"|"Box"|"Sphere"
+---@alias PaletteShapeType "Point"|"Circle"|"Rectangle"
 ---@alias DirectionMode "Radial"|"Default"
----@alias BoxEmitFrom "Volume"|"Shell"|"Edge"
+---@alias RectangleEmitFrom "Area"|"Edge"
 
 ---@class PaletteGradient
 ---@field ColorKeys PaletteGradientKey[]
@@ -38,9 +38,9 @@
 ---@class PaletteVelocityOverLifetime
 ---@field Enabled boolean
 ---@field Space "Local"|"World"
----@field LinearVelocity Vector | Vector3
----@field OrbitalVelocity Vector | Vector3
----@field OrbitalOffset Vector | Vector3
+---@field LinearVelocity Vector
+---@field OrbitalVelocity number Rotation around the orbital center, in degrees per frame. Default: 0
+---@field OrbitalOffset Vector
 ---@field Radial number
 ---@field SpeedModifier number
 
@@ -74,6 +74,6 @@
 ---@field Radius number Default: 40
 ---@field RadiusThickness number Default: 1
 ---@field Arc number Default: 360
----@field Size Vector3 Default: (1, 1, 1)
+---@field Size Vector Default: (1, 1)
 ---@field DirectionMode DirectionMode Default: "Default"
----@field BoxEmitFrom BoxEmitFrom Default: "Volume"
+---@field RectangleEmitFrom RectangleEmitFrom Default: "Area"

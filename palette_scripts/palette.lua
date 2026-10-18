@@ -2,9 +2,6 @@ local Palette = {}
 local ParticleEmitter = include("palette_scripts.particle_emitter")
 local PaletteOverLifetime = include("palette_scripts.palette_over_lifetime")
 local PaletteGradient = include("palette_scripts.palette_gradient")
-local Vector3 = include("palette_scripts.vector3")
-
-Palette.Vector3 = Vector3.new
 
 local initialized = false
 
@@ -59,18 +56,18 @@ end
 
 --- Creates a new `ParticleEmitter`.
 ---@param texturePath string The file path pointing to the texture used for the emitted particles. It must be a `.png` file with a bit-depth of 32. Invalid file paths will cause an error.
----@param position Vector | Vector3 | nil Optional. The starting position of the emitter. Default is (0, 0, 0)
+---@param position Vector | nil Optional. The starting position of the emitter. Default is (0, 0)
 ---@return ParticleEmitter
 function Palette:CreateParticleEmitter(texturePath, position)
     assert(initialized, "Palette must be initialized first before calling `CreateParticleEmitter`")
 
     if not position then
-        position = Vector3.Zero()
+        position = Vector.Zero
     else
-        position = Vector3.new(position.X, position.Y, position.Z or 0)
+        position = Vector(position.X, position.Y)
     end
 
-    ---@cast position Vector3
+    ---@cast position Vector
         
     local image = Renderer.LoadImage(texturePath)
     local sourceQuad = SourceQuad.NewFromRectangle(Vector.Zero, image:GetWidth(), image:GetHeight())
@@ -93,15 +90,15 @@ function Palette:CreateParticleEmitter(texturePath, position)
         VelocityOverLifetime = {
             Enabled = false,
             Space = "Local",
-            LinearVelocity = Vector3.Zero(),
-            OrbitalVelocity = Vector3.Zero(),
-            OrbitalOffset = Vector3.Zero(),
+            LinearVelocity = Vector.Zero,
+            OrbitalVelocity = 0,
+            OrbitalOffset = Vector.Zero,
             Radial = 0,
             SpeedModifier = 1,
         },
         Orientation = 0,
         StartSpeed = 2,
-        StartDirection = Vector3.new(0, -1, 0),
+        StartDirection = Vector(0, -1),
         StartSize = Vector.One,
         StartRotation = 0,
         PersistAcrossRooms = false,
@@ -113,9 +110,9 @@ function Palette:CreateParticleEmitter(texturePath, position)
             Radius = 40,
             RadiusThickness = 1,
             Arc = 360,
-            Size = Vector3.One(),
+            Size = Vector.One,
             DirectionMode = "Default",
-            BoxEmitFrom = "Volume"
+            RectangleEmitFrom = "Area"
         },
 
         _IsDestroyed = false,

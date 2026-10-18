@@ -20,7 +20,6 @@ modules = {
     "palette_scripts.palette_utils": "palette_scripts/palette_utils.lua",
     "palette_scripts.palette_gradient": "palette_scripts/palette_gradient.lua",
     "palette_scripts.particle_emitter": "palette_scripts/particle_emitter.lua",
-    "palette_scripts.vector3": "palette_scripts/vector3.lua",
     "palette_scripts.palette_keyframes": "palette_scripts/palette_keyframes.lua",
     "palette_scripts.palette_over_lifetime": "palette_scripts/palette_over_lifetime.lua",
     "palette_scripts.palette_shape": "palette_scripts/palette_shape.lua"
