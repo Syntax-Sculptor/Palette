@@ -19,7 +19,7 @@
 ---@alias InterpolationMode "Blend"|"Fixed"
 ---@alias ColorOverLifetimeMode "Gradient"|"TwoGradients"
 ---@alias CurveMode "Single"|"TwoCurves"
----@alias PaletteShapeType "Point"|"Circle"|"Rectangle"|"Triangle"
+---@alias PaletteShapeType "Point"|"Circle"|"Rectangle"|"Triangle"|"Line"
 ---@alias DirectionMode "Radial"|"Default"
 ---@alias EmitFrom "Area"|"Edge"
 
@@ -78,3 +78,4 @@
 ---@field DirectionMode DirectionMode Default: "Default"
 ---@field EmitFrom EmitFrom Default: "Area"
 ---@field Vertices Vector[] Default: {Vector(-50, 30), Vector(50, 30), Vector(0, -60)}
+---@field Length number

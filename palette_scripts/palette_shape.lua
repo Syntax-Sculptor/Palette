@@ -84,11 +84,15 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
                 v = 1 - v
             end
 
-
             local point =  a + u * (b - a) + v * (c - a)
             local offset = point:Rotated(orientation)
             return emitterPosition + offset
         end
+    elseif shape.Type == "Line" then
+        local u = PaletteUtils.GetRandom()
+        local randLength = PaletteUtils.GetRandomFloat(-shape.Length / 2, shape.Length / 2)
+        local point = Vector(randLength * u, 0):Rotated(orientation)
+        return emitterPosition + point
     else
         error("Unsupported particle shape: " .. shape.Type)
     end

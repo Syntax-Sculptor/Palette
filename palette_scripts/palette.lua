@@ -117,7 +117,8 @@ function Palette:CreateParticleEmitter(texturePath, position)
                 Vector(-50, 30),
                 Vector(50, 30),
                 Vector(0, -60)
-            }
+            },
+            Length = 120
         },
 
         _IsDestroyed = false,
