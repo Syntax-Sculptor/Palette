@@ -22,6 +22,7 @@
 ---@alias PaletteShapeType "Point"|"Circle"|"Rectangle"|"Triangle"|"Line"
 ---@alias DirectionMode "Radial"|"Default"
 ---@alias EmitFrom "Area"|"Edge"
+---@alias PaletteRenderMode "AboveEntities"|"Floor"
 
 ---@class PaletteGradient
 ---@field ColorKeys PaletteGradientKey[]

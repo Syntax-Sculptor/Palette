@@ -10,7 +10,13 @@ local emitters = {}
 
 local function onPostRoomRenderEntities()
     for _, particleEmitter in ipairs(emitters) do
-        particleEmitter:_Render()
+        particleEmitter:_OnPostRoomEntitiesRender()
+    end
+end
+
+local function onPreBackdropRenderWalls()
+    for _, particleEmitter in ipairs(emitters) do
+        particleEmitter:_OnPreBackdropRenderWalls()
     end
 end
 
@@ -48,6 +54,7 @@ function Palette:Init(mod)
     
     initialized = true
 
+    mod:AddCallback(ModCallbacks.MC_PRE_BACKDROP_RENDER_WALLS, onPreBackdropRenderWalls)
     mod:AddCallback(ModCallbacks.MC_POST_ROOM_RENDER_ENTITIES, onPostRoomRenderEntities)
     mod:AddCallback(ModCallbacks.MC_POST_UPDATE, onPostUpdate)
     mod:AddCallback(ModCallbacks.MC_PRE_NEW_ROOM, destroyNonPersistentEmitters)
@@ -120,6 +127,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
             },
             Length = 120
         },
+        RenderMode = "AboveEntities",
 
         _IsDestroyed = false,
         _EmissionAccumulator = 0,

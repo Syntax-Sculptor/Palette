@@ -22,7 +22,8 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field DirectionSpread number How spread out the spawned particles are relative to `StartDirection`. Default: 0
 ---@field SizeOverLifetime PaletteOverLifetime Attributes relating to how particles change size over their lifespan.
 ---@field RotationOverLifetime PaletteOverLifetime Attributes relating to how particles change rotation over their lifespan.
----@field Shape PaletteShapeConfig
+---@field Shape PaletteShapeConfig A module that configures its own shape, affecting the particle's spawn positions and velocity.
+---@field RenderMode PaletteRenderMode  Determines how particles are rendered onto the screen. Default: "AboveEntities"
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
 ---@field private _Particles Particle[]
@@ -169,11 +170,23 @@ function ParticleEmitter:Destroy()
     self._DestroyFun = nil
 end
 
-function ParticleEmitter:_Render()
-    if self:IsDestroyed() then
+function ParticleEmitter:_OnPostRoomEntitiesRender()
+    if self:IsDestroyed() or self.RenderMode ~= "AboveEntities" then
         return
     end
 
+    self:_Render()
+end
+
+function ParticleEmitter:_OnPreBackdropRenderWalls()
+    if self:IsDestroyed() or self.RenderMode ~= "Floor" then
+        return
+    end
+
+    self:_Render()
+end
+
+function ParticleEmitter:_Render()
     local imageWidth, imageHeight = self._RenderImage:GetWidth(), self._RenderImage:GetHeight()
 
     for _, particle in ipairs(self._Particles) do
