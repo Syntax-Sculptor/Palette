@@ -32,14 +32,52 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
 
         return emitterPosition + offset
     elseif shape.Type == "Box" then
-        local randX = PaletteUtils.GetRandomFloat(-shape.Size.X / 2, shape.Size.X / 2)
-        local randY = PaletteUtils.GetRandomFloat(-shape.Size.Y / 2, shape.Size.Y / 2)
-        local randZ = PaletteUtils.GetRandomFloat(-shape.Size.Z / 2, shape.Size.Z / 2)
+        if shape.BoxEmitFrom == "Volume" then
+            local randX = PaletteUtils.GetRandomFloat(-shape.Size.X / 2, shape.Size.X / 2)
+            local randY = PaletteUtils.GetRandomFloat(-shape.Size.Y / 2, shape.Size.Y / 2)
+            local randZ = PaletteUtils.GetRandomFloat(-shape.Size.Z / 2, shape.Size.Z / 2)
 
-        local offset = Vector3.new(randX, randY, randZ)
-        offset:RotateZ(orientation)
+            local offset = Vector3.new(randX, randY, randZ)
+            offset:RotateZ(orientation)
 
-        return emitterPosition + offset
+            return emitterPosition + offset
+        elseif shape.BoxEmitFrom == "Shell" then
+            local areaXY = shape.Size.X * shape.Size.Y
+            local areaXZ = shape.Size.X * shape.Size.Z
+            local areaYZ = shape.Size.Y * shape.Size.Z
+            local randX = PaletteUtils.GetRandomFloat(-shape.Size.X / 2, shape.Size.X / 2)
+            local randY = PaletteUtils.GetRandomFloat(-shape.Size.Y / 2, shape.Size.Y / 2)
+            local randZ = PaletteUtils.GetRandomFloat(-shape.Size.Z / 2, shape.Size.Z / 2)
+
+            local totalArea = areaXY + areaXZ + areaYZ
+            local choice = PaletteUtils.GetRandomFloat(0, totalArea) 
+            local chosenFace
+            local finalOffset
+
+            if choice < areaXY then
+                chosenFace = "XY"
+            elseif choice < areaXY + areaXZ then
+                chosenFace = "XZ"
+            else
+                chosenFace = "YZ"
+            end
+
+            if chosenFace == "XY" then
+                local z = PaletteUtils.GetRandom() < 0.5 and -shape.Size.Z / 2 or shape.Size.Z / 2
+                finalOffset = Vector3.new(randX, randY, z)
+            elseif chosenFace == "XZ" then
+                local y = PaletteUtils.GetRandom() < 0.5 and -shape.Size.Y / 2 or shape.Size.Y / 2
+                finalOffset = Vector3.new(randX, y, randZ)
+            else
+                local x = PaletteUtils.GetRandom() < 0.5 and -shape.Size.X / 2 or shape.Size.X / 2
+                finalOffset = Vector3.new(x, randY, randZ)
+            end
+
+            finalOffset:RotateZ(orientation)
+            return emitterPosition + finalOffset
+        else
+            error("Unknown BoxEmitForm: " .. shape.BoxEmitFrom)
+        end
     elseif shape.Type == "Sphere" then
         -- Inverse Transform Sampling... again!
         -- https://corysimon.github.io/articles/uniformdistn-on-sphere/ Thank this goat

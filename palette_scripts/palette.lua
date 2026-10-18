@@ -115,6 +115,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
             Arc = 360,
             Size = Vector3.One(),
             DirectionMode = "Default",
+            BoxEmitFrom = "Volume"
         },
 
         _IsDestroyed = false,

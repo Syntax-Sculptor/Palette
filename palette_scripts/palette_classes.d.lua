@@ -21,6 +21,7 @@
 ---@alias CurveMode "Single"|"TwoCurves"
 ---@alias PaletteShapeType "Point"|"Circle"|"Rectangle"|"Box"|"Sphere"
 ---@alias DirectionMode "Radial"|"Default"
+---@alias BoxEmitFrom "Volume"|"Shell"|"Edge"
 
 ---@class PaletteGradient
 ---@field ColorKeys PaletteGradientKey[]
@@ -75,3 +76,4 @@
 ---@field Arc number Default: 360
 ---@field Size Vector3 Default: (1, 1, 1)
 ---@field DirectionMode DirectionMode Default: "Default"
+---@field BoxEmitFrom BoxEmitFrom Default: "Volume"
