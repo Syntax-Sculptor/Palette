@@ -264,10 +264,10 @@ function ParticleEmitter:_UpdateParticleColor(particle)
     
     local t = particle.FrameCount / particle.Lifetime
 
-    if self.ColorOverLifetime.CurveMode == "Gradient" then
+    if self.ColorOverLifetime.CurveMode == "Single" then
         local gradientColor = PaletteGradient:Evaluate(self.ColorOverLifetime.Gradient, t, self.ColorOverLifetime.Mode)
         particle.Color = PaletteUtils.MultiplyKColor(particle.StartColor, gradientColor)
-    elseif self.ColorOverLifetime.CurveMode == "TwoGradients" then
+    elseif self.ColorOverLifetime.CurveMode == "TwoCurves" then
         local gradientColorMin = PaletteGradient:Evaluate(self.ColorOverLifetime.GradientMin, t, self.ColorOverLifetime.Mode)
         local gradientColorMax = PaletteGradient:Evaluate(self.ColorOverLifetime.GradientMax, t, self.ColorOverLifetime.Mode)
         local gradientColor = PaletteUtils.LerpKColor(gradientColorMin, gradientColorMax, particle.LerpFactor)
