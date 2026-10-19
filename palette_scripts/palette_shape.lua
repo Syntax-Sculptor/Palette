@@ -71,7 +71,7 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
         end
 
     elseif shape.Type == "Rectangle" then
-        local width = shape.Size.X * shape.Scale.Y
+        local width = shape.Size.X * shape.Scale.X
         local height = shape.Size.Y * shape.Scale.Y
         local randX = PaletteUtils.GetRandomFloat(-width / 2, width / 2)
         local randY = PaletteUtils.GetRandomFloat(-height / 2, height / 2)
@@ -142,14 +142,37 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
 
         for i = 1, sideCount do
             local angle = (2 * math.pi * i) / sideCount
-            local vertex = Vector(shape.Radius * math.cos(angle), shape.Radius * math.sin(angle))
+            local vertex = Vector(shape.Radius * math.cos(angle), shape.Radius * math.sin(angle)) * shape.Scale
             table.insert(vertices, vertex)
         end
 
-        -- Visually, picture this like uh, splitting a polygon into N triangles. Then the black
-        -- magic for this is simple.
-        local index = PaletteUtils.GetRandomInt(1, #vertices)
-        local nextIndex = (index % sideCount) + 1
+        local lengths = {}
+        local perimeter = 0
+
+        -- If we set the shape's scale, each side has uneven length. We need to use weighted selection
+        -- To get around this.
+        
+        for i = 1, sideCount do
+            local nextIndex = i % sideCount + 1
+            local length = (vertices[nextIndex] - vertices[i]):Length()
+
+            lengths[i] = length
+            perimeter = perimeter + length
+        end
+
+        local choice = PaletteUtils.GetRandomFloat(0, perimeter)
+        local index = sideCount
+
+        for i = 1, sideCount do
+            if choice < lengths[i] then
+                index = i
+                break
+            end
+
+            choice = choice - lengths[i]
+        end
+
+        local nextIndex = index % sideCount + 1
         local a = vertices[index]
         local b = vertices[nextIndex]
 
@@ -160,6 +183,92 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
         else
             local point = PaletteShape.GetPointInTriangle(a, b, Vector.Zero):Rotated(orientation)
             return emitterPosition + point
+        end
+    elseif shape.Type == "Capsule" then
+        local halfStraight = shape.Length / 2 - shape.Radius
+
+        if shape.EmitFrom == "Area" then
+            local rectangularArea = 4 * halfStraight * shape.Radius
+            local capsuleArea = math.pi * shape.Radius^2
+            local totalArea = rectangularArea + capsuleArea
+            local rectangleChance = rectangularArea / totalArea
+            local chance = PaletteUtils.GetRandom()
+
+            -- Obviously a capsule has a rectanguilar region followed by a semi-circle region at its
+            -- ends. Pick one randomly.
+            if chance <= rectangleChance then
+                local x = PaletteUtils.GetRandomFloat(-halfStraight, halfStraight)
+                local y = PaletteUtils.GetRandomFloat(-shape.Radius, shape.Radius)
+                local offset = (Vector(x, y) * shape.Scale):Rotated(orientation)
+                return emitterPosition + offset
+            else
+                -- First pick a random angle within the semi-circle.
+                local isRight = PaletteUtils.GetRandom() < 0.5
+                local angle
+
+                if isRight then
+                    angle = PaletteUtils.GetRandomFloat(-math.pi / 2, math.pi / 2)
+                else
+                    angle = PaletteUtils.GetRandomFloat(math.pi / 2, 3 * math.pi / 2)
+                end
+
+                -- Offset the point.
+                local r = shape.Radius * math.sqrt(PaletteUtils.GetRandom())
+                local x = r * math.cos(angle)
+                local y = r * math.sin(angle)
+
+                if isRight then
+                    x = x + halfStraight
+                else
+                    x = x - halfStraight
+                end
+
+                local offset = (Vector(x, y) * shape.Scale):Rotated(orientation)
+                return emitterPosition + offset
+            end
+        else
+            local straightLength = 4 * halfStraight
+            local curveLength = 2 * math.pi * shape.Radius
+            local perimeter = straightLength + curveLength
+            local straightChance = straightLength / perimeter
+            local offset
+            local weight
+
+            local maxWeight = math.max(shape.Scale.X, shape.Scale.Y)
+
+            -- Weighted distribution since capsules are uneven shapes.
+            repeat
+                if PaletteUtils.GetRandom() < straightChance then
+                    local x = PaletteUtils.GetRandomFloat(-halfStraight, halfStraight)
+                    local y = PaletteUtils.GetRandom() < 0.5 and -shape.Radius or shape.Radius
+                    weight = shape.Scale.X
+                    offset = Vector(x, y)
+                else
+                    local isRight = PaletteUtils.GetRandom() < 0.5
+                    local angle
+
+                    if isRight then
+                        angle = PaletteUtils.GetRandomFloat(-math.pi / 2, math.pi / 2)
+                    else
+                        angle = PaletteUtils.GetRandomFloat(math.pi / 2, 3 * math.pi / 2)
+                    end
+
+                    local x = shape.Radius * math.cos(angle)
+
+                    if isRight then
+                        x = x + halfStraight
+                    else
+                        x = x - halfStraight
+                    end
+
+                    local y = math.sin(angle) * shape.Radius
+
+                    offset = Vector(x, y)
+                    weight = PaletteShape.GetCircleWeight(angle, shape.Scale.X, shape.Scale.Y)
+                end
+            until PaletteUtils.GetRandom() * maxWeight <= weight
+
+            return emitterPosition + (offset * shape.Scale):Rotated(orientation)
         end
     else
         error("Unsupported particle shape: " .. shape.Type)
