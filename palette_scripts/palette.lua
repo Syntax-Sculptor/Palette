@@ -127,7 +127,8 @@ function Palette:CreateParticleEmitter(texturePath, position)
                 Vector(0, -60)
             },
             Length = 120,
-            Sides = 3
+            Sides = 3,
+            Scale = Vector.One
         },
         RenderMode = "AboveEntities",
 

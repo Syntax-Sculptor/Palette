@@ -58,8 +58,8 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
             -- Weighted angle sampling. With elipses, we can't simply divide the shape using the
             -- same angle and just pick one since the distances would be unequal due to how the
             -- shape looks. We use weighted selection to help promote even distribution.
-            local a = shape.Radius * shape.Size.X
-            local b = shape.Radius * shape.Size.Y
+            local a = shape.Radius * shape.Scale.X
+            local b = shape.Radius * shape.Scale.Y
             local maxWeight = math.max(a, b)
         
             repeat
@@ -71,17 +71,19 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
         end
 
     elseif shape.Type == "Rectangle" then
-        local randX = PaletteUtils.GetRandomFloat(-shape.Size.X / 2, shape.Size.X / 2)
-        local randY = PaletteUtils.GetRandomFloat(-shape.Size.Y / 2, shape.Size.Y / 2)
+        local width = shape.Size.X * shape.Scale.Y
+        local height = shape.Size.Y * shape.Scale.Y
+        local randX = PaletteUtils.GetRandomFloat(-width / 2, width / 2)
+        local randY = PaletteUtils.GetRandomFloat(-height / 2, height / 2)
 
         if shape.EmitFrom == "Edge" then
             -- Weight each pair of edges by its length for uniform perimeter sampling.
-            local choice = PaletteUtils.GetRandomFloat(0, shape.Size.X + shape.Size.Y)
+            local choice = PaletteUtils.GetRandomFloat(0, width + height)
 
-            if choice < shape.Size.X then
-                randY = PaletteUtils.GetRandom() < 0.5 and -shape.Size.Y / 2 or shape.Size.Y / 2
+            if choice < width then
+                randY = PaletteUtils.GetRandom() < 0.5 and -height / 2 or height / 2
             else
-                randX = PaletteUtils.GetRandom() < 0.5 and -shape.Size.X / 2 or shape.Size.X / 2
+                randX = PaletteUtils.GetRandom() < 0.5 and -width / 2 or width / 2
             end
         end
 
@@ -93,7 +95,9 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
             error("A particle emitter must have at least 3 vertices!")
         end
         
-        local a, b, c = shape.Vertices[1], shape.Vertices[2], shape.Vertices[3]
+        local a = shape.Vertices[1] * shape.Scale
+        local b = shape.Vertices[2] * shape.Scale
+        local c = shape.Vertices[3] * shape.Scale
 
         if shape.EmitFrom == "Edge" then
             local lengthAB = (a - b):Length()
@@ -126,7 +130,8 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
         end
     elseif shape.Type == "Line" then
         local u = PaletteUtils.GetRandom()
-        local randLength = PaletteUtils.GetRandomFloat(-shape.Length / 2, shape.Length / 2)
+        local length = shape.Length * shape.Scale.X
+        local randLength = PaletteUtils.GetRandomFloat(-length / 2, length / 2)
         local point = Vector(randLength * u, 0):Rotated(orientation)
         return emitterPosition + point
     elseif shape.Type == "Polygon" then

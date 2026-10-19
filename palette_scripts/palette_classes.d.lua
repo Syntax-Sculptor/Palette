@@ -70,8 +70,9 @@
 ---@field DirectionMode DirectionMode Default: "Default"
 ---@field EmitFrom EmitFrom Default: "Area"
 ---@field Vertices Vector[] Default: {Vector(-50, 30), Vector(50, 30), Vector(0, -60)}
----@field Length number
----@field Sides integer
+---@field Length number Default: 120
+---@field Sides integer Default: 3
+---@field Scale Vector Default: Vector(1, 1)
 
 ---@class PaletteColorOverLifetime
 ---@field Enabled boolean
