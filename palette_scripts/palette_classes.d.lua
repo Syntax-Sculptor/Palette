@@ -18,7 +18,7 @@
 
 ---@alias InterpolationMode "Blend"|"Fixed"
 ---@alias CurveMode "Single"|"TwoCurves"
----@alias PaletteShapeType "Point"|"Circle"|"Rectangle"|"Triangle"|"Line"
+---@alias PaletteShapeType "Point"|"Circle"|"Rectangle"|"Triangle"|"Line"|"Polygon"
 ---@alias DirectionMode "Radial"|"Default"
 ---@alias EmitFrom "Area"|"Edge"
 ---@alias PaletteRenderMode "AboveEntities"|"Floor"
@@ -71,6 +71,7 @@
 ---@field EmitFrom EmitFrom Default: "Area"
 ---@field Vertices Vector[] Default: {Vector(-50, 30), Vector(50, 30), Vector(0, -60)}
 ---@field Length number
+---@field Sides integer
 
 ---@class PaletteColorOverLifetime
 ---@field Enabled boolean
