@@ -17,7 +17,6 @@
 ---@field SpawnPosition Vector
 
 ---@alias InterpolationMode "Blend"|"Fixed"
----@alias ColorOverLifetimeMode "Gradient"|"TwoGradients"
 ---@alias CurveMode "Single"|"TwoCurves"
 ---@alias PaletteShapeType "Point"|"Circle"|"Rectangle"|"Triangle"|"Line"
 ---@alias DirectionMode "Radial"|"Default"
@@ -25,16 +24,8 @@
 ---@alias PaletteRenderMode "AboveEntities"|"Floor"
 
 ---@class PaletteGradient
----@field ColorKeys PaletteGradientKey[]
----@field AlphaKeys PaletteAlphaKey[]
----@field Mode InterpolationMode
-
----@class PaletteColorOverLifetime
----@field Enabled boolean
----@field Mode ColorOverLifetimeMode
----@field Gradient PaletteGradient
----@field GradientMin PaletteGradient
----@field GradientMax PaletteGradient
+---@field ColorKeys Keyframe<KColor>[]
+---@field AlphaKeys Keyframe<number>[]
 
 ---@class PaletteVelocityOverLifetime
 ---@field Enabled boolean
@@ -80,3 +71,11 @@
 ---@field EmitFrom EmitFrom Default: "Area"
 ---@field Vertices Vector[] Default: {Vector(-50, 30), Vector(50, 30), Vector(0, -60)}
 ---@field Length number
+
+---@class PaletteColorOverLifetime
+---@field Enabled boolean
+---@field Mode InterpolationMode
+---@field CurveMode CurveMode
+---@field Gradient PaletteGradient
+---@field GradientMin PaletteGradient
+---@field GradientMax PaletteGradient

@@ -89,7 +89,8 @@ function Palette:CreateParticleEmitter(texturePath, position)
         StartColor = KColor.White,
         ColorOverLifetime = {
             Enabled = false,
-            Mode = "Gradient",
+            CurveMode = "Single",
+            Mode = "Blend",
             Gradient = PaletteGradient:New(),
             GradientMin = PaletteGradient:New(),
             GradientMax = PaletteGradient:New()

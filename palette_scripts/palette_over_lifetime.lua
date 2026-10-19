@@ -48,7 +48,6 @@ function PaletteOverLifetime:Evaluate(time, lerpFactor)
         return PaletteKeyframes.Evaluate(
             self.Keys,
             time,
-            "Value",
             self.DefaultValue,
             self.Mode,
             PaletteUtils.Lerp
@@ -57,7 +56,6 @@ function PaletteOverLifetime:Evaluate(time, lerpFactor)
         local min = PaletteKeyframes.Evaluate(
             self.KeysMin,
             time,
-            "Value",
             self.DefaultValue,
             self.Mode,
             PaletteUtils.Lerp
@@ -65,7 +63,6 @@ function PaletteOverLifetime:Evaluate(time, lerpFactor)
         local max = PaletteKeyframes.Evaluate(
             self.KeysMax,
             time,
-            "Value",
             self.DefaultValue,
             self.Mode,
             PaletteUtils.Lerp

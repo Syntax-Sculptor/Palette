@@ -265,11 +265,11 @@ function ParticleEmitter:_UpdateParticleColor(particle)
     local t = particle.FrameCount / particle.Lifetime
 
     if self.ColorOverLifetime.Mode == "Gradient" then
-        local gradientColor = PaletteGradient:Evaluate(self.ColorOverLifetime.Gradient, t, self.ColorOverLifetime.Gradient.Mode)
+        local gradientColor = PaletteGradient:Evaluate(self.ColorOverLifetime.Gradient, t, self.ColorOverLifetime.Mode)
         particle.Color = PaletteUtils.MultiplyKColor(particle.StartColor, gradientColor)
     elseif self.ColorOverLifetime.Mode == "TwoGradients" then
-        local gradientColorMin = PaletteGradient:Evaluate(self.ColorOverLifetime.GradientMin, t, self.ColorOverLifetime.GradientMin.Mode)
-        local gradientColorMax = PaletteGradient:Evaluate(self.ColorOverLifetime.GradientMax, t, self.ColorOverLifetime.GradientMax.Mode)
+        local gradientColorMin = PaletteGradient:Evaluate(self.ColorOverLifetime.GradientMin, t, self.ColorOverLifetime.Mode)
+        local gradientColorMax = PaletteGradient:Evaluate(self.ColorOverLifetime.GradientMax, t, self.ColorOverLifetime.Mode)
         local gradientColor = PaletteUtils.LerpKColor(gradientColorMin, gradientColorMax, particle.LerpFactor)
         particle.Color = PaletteUtils.MultiplyKColor(particle.StartColor, gradientColor)
     end
