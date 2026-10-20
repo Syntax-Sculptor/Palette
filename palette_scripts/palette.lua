@@ -145,6 +145,8 @@ function Palette:CreateParticleEmitter(texturePath, position)
             Scale = Vector.One
         },
         RenderMode = "AboveEntities",
+        Shader = nil,
+        ShaderParams = {},
 
         _IsDestroyed = false,
         _EmissionAccumulator = 0,

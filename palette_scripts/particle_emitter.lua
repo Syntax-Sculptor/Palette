@@ -24,6 +24,8 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field RotationOverLifetime PaletteOverLifetime Attributes relating to how particles change rotation over their lifespan.
 ---@field Shape PaletteShapeConfig A module that configures its own shape, affecting the particle's spawn positions and velocity.
 ---@field RenderMode PaletteRenderMode  Determines how particles are rendered onto the screen. Default: "AboveEntities"
+---@field Shader Shader?
+---@field ShaderParams table<string, number|number[]>
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
 ---@field private _Particles Particle[]
@@ -207,7 +209,18 @@ function ParticleEmitter:_Render()
             scaledHeight
         )
         destinationQuad:Rotate(particle.Rotation, renderPos)
-        self._RenderImage:Render(self._EmitterSourceQuad, destinationQuad, particle.Color)
+
+        if self.Shader then
+            self._RenderImage:RenderWithShader(
+                self._EmitterSourceQuad, 
+                destinationQuad, 
+                particle.Color, 
+                self.Shader, 
+                self.ShaderParams
+            )
+        else
+            self._RenderImage:Render(self._EmitterSourceQuad, destinationQuad, particle.Color)
+        end
     end
 end
 
