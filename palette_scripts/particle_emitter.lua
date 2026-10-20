@@ -36,8 +36,17 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field private _DestroyFun fun(self: ParticleEmitter)
 ---@field private _FollowingEntity Entity?
 ---@field private _EntityFollowOffset Vector
+---@field private _IsPaused boolean
 local ParticleEmitter = {}
 ParticleEmitter.__index = ParticleEmitter
+
+function ParticleEmitter:Resume()
+    self._IsPaused = false
+end
+
+function ParticleEmitter:Pause()
+    self._IsPaused = true
+end
 
 --- Causes the particle emitter to follow an entity while it's alive. Pass `nil` to have the
 --- Particle Emitter stop following it.
@@ -58,11 +67,15 @@ function ParticleEmitter:GetFollowingEntity()
     return self._FollowingEntity
 end
 
+function ParticleEmitter:IsPaused()
+    return self._IsPaused
+end
+
 --- Updates the ParticleEmitter's logic including its current particles. By default, this is called
 --- every frame using `MC_POST_UPDATE`. While there's typically no need to call this method as
 --- it's done automatically, it may be useful for forcing updates.
 function ParticleEmitter:Update()
-    if self:IsDestroyed() then
+    if self:IsDestroyed() or self:IsPaused() then
         return
     end
 
