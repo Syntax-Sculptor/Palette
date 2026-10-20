@@ -156,6 +156,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
         _RenderImage = image,
         _EmitterSourceQuad = sourceQuad,
         _DestroyFun = unregisterEmitter,
+        _EntityFollowOffset = Vector.Zero
     }
 
     local ParticleEmitterMT = setmetatable(ParticleEmitterInstance, ParticleEmitter)

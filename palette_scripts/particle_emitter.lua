@@ -35,14 +35,17 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field private _IsDestroyed boolean
 ---@field private _DestroyFun fun(self: ParticleEmitter)
 ---@field private _FollowingEntity Entity?
+---@field private _EntityFollowOffset Vector
 local ParticleEmitter = {}
 ParticleEmitter.__index = ParticleEmitter
 
 --- Causes the particle emitter to follow an entity while it's alive. Pass `nil` to have the
 --- Particle Emitter stop following it.
 --- @param entity Entity?
-function ParticleEmitter:FollowEntity(entity)
+--- @param followOffset Vector? Optional. Default: (0, 0)
+function ParticleEmitter:FollowEntity(entity, followOffset)
     self._FollowingEntity = entity
+    self._EntityFollowOffset = followOffset or Vector.Zero
 end
 
 --- Returns whether the particle emitter is following an entity.
@@ -67,7 +70,7 @@ function ParticleEmitter:Update()
         if not self._FollowingEntity:Exists() then
             self._FollowingEntity = nil
         else
-            self.Position = self._FollowingEntity.Position
+            self.Position = self._FollowingEntity.Position + self._EntityFollowOffset
         end
     end
 
@@ -75,11 +78,18 @@ function ParticleEmitter:Update()
     self:_UpdateContinuousEmission()
 end
 
+function ParticleEmitter:GetParticleCount()
+    return #self._Particles
+end
+
 --- Spawns multiple particles in a single batches. If the number of particles exceeds or is equal to
 --- `ParticlEmitter.MaxParticles`, extraneous particles are not spawned.
 ---@param count integer
-function ParticleEmitter:Emit(count)
+---@param positionOffset Vector? Optional. Default: (0, 0)
+function ParticleEmitter:Emit(count, positionOffset)
     assert(not self:IsDestroyed(), "Attempted to Emit particles on a destroyed ParticleEmitter")
+
+    positionOffset = positionOffset or Vector.Zero
 
     for i = 1, count do
         if #self._Particles >= self.MaxParticles then
@@ -96,7 +106,7 @@ function ParticleEmitter:Emit(count)
             newParticle = {}
         end
         
-        self:_InitializeParticle(newParticle)
+        self:_InitializeParticle(newParticle, positionOffset)
 
         ---@cast newParticle Particle
         table.insert(self._Particles, newParticle)
@@ -287,7 +297,8 @@ function ParticleEmitter:_UpdateParticleColor(particle)
 end
 
 ---@param particle Particle
-function ParticleEmitter:_InitializeParticle(particle)
+---@param positionOffset Vector
+function ParticleEmitter:_InitializeParticle(particle, positionOffset)
     local startSize = PaletteUtils.SampleVector(self.StartScale)
     local emitterPosition = Vector(self.Position.X, self.Position.Y)
     local spawnPosition = PaletteShape.GetSpawnPosition(
@@ -312,7 +323,7 @@ function ParticleEmitter:_InitializeParticle(particle)
     finalDirection = finalDirection:Rotated(spreadAngle)
 
     particle.SpawnPosition = spawnPosition
-    particle.Position = Vector(spawnPosition.X, spawnPosition.Y)
+    particle.Position = Vector(spawnPosition.X, spawnPosition.Y) + positionOffset
     particle.Velocity = finalDirection * PaletteUtils.SampleFloat(self.StartSpeed)
     particle.FrameCount = 0
     particle.Scale = startSize
