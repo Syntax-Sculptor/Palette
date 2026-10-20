@@ -52,7 +52,6 @@ end
 function PaletteGradient:New()
     ---@type PaletteGradient
     local newGradient = {
-        Mode = "Blend",
         ColorKeys = {
             { Time = 0, Value = KColor.White },
             { Time = 1, Value = KColor.White },

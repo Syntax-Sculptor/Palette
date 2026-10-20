@@ -257,8 +257,6 @@ function ParticleEmitter:_UpdateParticles()
             local velocity = self:_GetParticleVelocity(particle)
             particle.Position = particle.Position + velocity
 
-            local t = particle.FrameCount / particle.Lifetime
-    
             particle.Scale = self:_GetParticleScale(particle)
             particle.Rotation = self:_GetParticleRotation(particle)
 
