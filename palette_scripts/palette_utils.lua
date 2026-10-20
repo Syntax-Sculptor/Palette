@@ -2,6 +2,15 @@ local PaletteUtils = {}
 
 local utilsRNG = RNG(Random(), 35)
 
+---100% the same as PaletteUtils.Lerp, though this function must exist so Lua's linter doesn't
+---flip out.
+---@param a Vector
+---@param b Vector
+---@param t number
+function PaletteUtils.LerpVector(a, b, t)
+    return a + (b - a) * t
+end
+
 ---@param a number
 ---@param b number
 ---@param t number
@@ -157,6 +166,28 @@ function PaletteUtils.SampleKColor(rangeOrFixed, rngOrSeed)
         local t = PaletteUtils.GetRandom(rngOrSeed)
         return PaletteUtils.LerpKColor(rangeOrFixed.Min, rangeOrFixed.Max, t)
     end
+end
+
+
+---@param array table[]
+---@param target number
+---@param key string
+---@return integer
+function PaletteUtils.BinarySearchDictionary(array, target, key)
+    local low = 1
+    local high = #array + 1
+
+    while low < high do
+        local mid = math.floor((low + high) / 2)
+
+        if mid <= #array and array[mid][key] < target then
+            low = mid + 1
+        else
+            high = mid
+        end
+    end
+
+    return low
 end
 
 return PaletteUtils

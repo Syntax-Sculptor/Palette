@@ -126,6 +126,20 @@ function Palette:CreateParticleEmitter(texturePath, position)
                 Vector(50, 30),
                 Vector(0, -60)
             },
+            _BezierCache = {
+                Lookup = {},
+                OriginalPoints = {},
+                Scale = Vector(0, 0),
+                ScaledPoints = {},
+                Resolution = 0,
+                TotalLength = 0,
+            },
+            Points = {
+                Vector(-50, 0),
+                Vector(0, -50),
+                Vector(50, 0)
+            },
+            CurveResolution = 67,
             Length = 120,
             Sides = 3,
             Scale = Vector.One
