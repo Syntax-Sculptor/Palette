@@ -175,16 +175,6 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
             perimeter = perimeter + length
         end
 
-        local choice = PaletteUtils.GetRandomFloat(0, perimeter)
-
-        for i = 1, sideCount do
-            if choice < lengths[i] then
-                break
-            end
-
-            choice = choice - lengths[i]
-        end
-
         if shape.EmitFrom == "Edge" then
             local lengths = {}
             local perimeter = 0

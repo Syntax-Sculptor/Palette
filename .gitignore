@@ -3,3 +3,5 @@
 *.xml
 dist/
 main.lua
+disable.it
+*.it
