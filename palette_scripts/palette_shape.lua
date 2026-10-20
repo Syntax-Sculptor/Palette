@@ -49,8 +49,8 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
             local chosenRadius = math.sqrt(minRadius^2 + u * (shape.Radius^2 - minRadius^2))
             
             local offset = Vector(
-                chosenRadius * math.cos(angle) * shape.Size.X,
-                chosenRadius * math.sin(angle) * shape.Size.Y
+                chosenRadius * math.cos(angle) * shape.Scale.X,
+                chosenRadius * math.sin(angle) * shape.Scale.Y
             ):Rotated(orientation)
 
             return emitterPosition + offset
@@ -129,10 +129,9 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
             return emitterPosition + offset
         end
     elseif shape.Type == "Line" then
-        local u = PaletteUtils.GetRandom()
         local length = shape.Length * shape.Scale.X
         local randLength = PaletteUtils.GetRandomFloat(-length / 2, length / 2)
-        local point = Vector(randLength * u, 0):Rotated(orientation)
+        local point = Vector(randLength, 0):Rotated(orientation)
         return emitterPosition + point
     elseif shape.Type == "Polygon" then
         local sideCount = math.max(3, math.floor(shape.Sides))
@@ -161,27 +160,60 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
         end
 
         local choice = PaletteUtils.GetRandomFloat(0, perimeter)
-        local index = sideCount
-
+    
         for i = 1, sideCount do
             if choice < lengths[i] then
-                index = i
                 break
             end
 
             choice = choice - lengths[i]
         end
 
-        local nextIndex = index % sideCount + 1
-        local a = vertices[index]
-        local b = vertices[nextIndex]
-
         if shape.EmitFrom == "Edge" then
+            local lengths = {}
+            local perimeter = 0
+
+            for i = 1, sideCount do
+                local nextIndex = i % sideCount + 1
+                local length = (vertices[nextIndex] - vertices[i]):Length()
+
+                lengths[i] = length
+                perimeter = perimeter + length
+            end
+
+            local choice = PaletteUtils.GetRandomFloat(0, perimeter)
+            local index = sideCount
+
+            for i = 1, sideCount do
+                if choice < lengths[i] then
+                    index = i
+                    break
+                end
+
+                choice = choice - lengths[i]
+            end
+
+            local nextIndex = index % sideCount + 1
+            local a = vertices[index]
+            local b = vertices[nextIndex]
+
             local t = PaletteUtils.GetRandom()
             local point = (a + (b - a) * t):Rotated(orientation)
+
             return emitterPosition + point
         else
-            local point = PaletteShape.GetPointInTriangle(a, b, Vector.Zero):Rotated(orientation)
+            -- All center-based triangles have equal areas,
+            -- even after nonuniform scaling.
+            local index = PaletteUtils.GetRandomInt(1, sideCount)
+            local nextIndex = index % sideCount + 1
+
+            local a = vertices[index]
+            local b = vertices[nextIndex]
+
+            local point = PaletteShape.GetPointInTriangle(
+                a, b, Vector.Zero
+            ):Rotated(orientation)
+
             return emitterPosition + point
         end
     elseif shape.Type == "Capsule" then
