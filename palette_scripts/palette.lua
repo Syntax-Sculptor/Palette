@@ -107,7 +107,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
         Orientation = 0,
         StartSpeed = 2,
         StartDirection = Vector(0, -1),
-        StartSize = Vector.One,
+        StartScale = Vector.One,
         StartRotation = 0,
         PersistAcrossRooms = false,
         DirectionSpread = 0,

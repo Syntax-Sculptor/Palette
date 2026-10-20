@@ -17,7 +17,7 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field StartDirection Vector The default direction of the particle. Default: (0, -1)
 ---@field StartRotation number | PaletteMinMaxFloat The initial rotation for each particle. Default: 0
 ---@field Orientation number The emitter's rotation, in degrees. This is solely used to handle how particles move out from the emitter as opposed to changing the rotation of the particle's sprite. To change the sprite's actual rotation, use `StartRotation`. Default: 0
----@field StartSize Vector | PaletteMinMaxVector The initial scale of spawned particles. Default: (1, 1)
+---@field StartScale Vector | PaletteMinMaxVector The initial scale of spawned particles. Default: (1, 1)
 ---@field PersistAcrossRooms boolean Whether the particle emitter is destroyed when leaving the current room or exiting the game. Default: false
 ---@field DirectionSpread number How spread out the spawned particles are relative to `StartDirection`. Default: 0
 ---@field SizeOverLifetime PaletteOverLifetime Attributes relating to how particles change size over their lifespan.
@@ -277,7 +277,7 @@ end
 
 ---@param particle Particle
 function ParticleEmitter:_InitializeParticle(particle)
-    local startSize = PaletteUtils.SampleVector(self.StartSize)
+    local startSize = PaletteUtils.SampleVector(self.StartScale)
     local emitterPosition = Vector(self.Position.X, self.Position.Y)
     local spawnPosition = PaletteShape.GetSpawnPosition(
         self.Shape,
