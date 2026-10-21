@@ -13,6 +13,78 @@ function PaletteShape.GetCircleWeight(angle, a, b)
 end
 
 ---@param points Vector[]
+---@param closed boolean
+function PaletteShape.GetNumPolylineSegments(points, closed)
+    local n = #points
+    if closed then
+        return n
+    else
+        return n - 1
+    end
+end
+
+---@param shape PaletteShapeConfig
+function PaletteShape.IsPolylineCacheValid(shape)
+    local cache = shape._PolylineCache
+    
+    if 
+        #shape.Points ~= #cache.OriginalPoints
+        or shape.Closed ~= cache.Closed
+        or shape.Scale.X ~= cache.Scale.X
+        or shape.Scale.Y ~= cache.Scale.Y
+        or PaletteShape.GetNumPolylineSegments(shape.Points, shape.Closed) ~= #cache.Lookup - 1
+    then
+        return false
+    end
+
+    for i = 1, #shape.Points do
+        local a = shape.Points[i]
+        local b = cache.OriginalPoints[i]
+        if a.X ~= b.X or a.Y ~= b.Y then
+            return false
+        end
+    end
+
+    return true
+end
+
+---@param shape PaletteShapeConfig
+function PaletteShape.RebuildPolylineCache(shape)
+    local cache = shape._PolylineCache
+    cache.OriginalPoints = {}
+    cache.ScaledPoints = {}
+
+    for _, point in ipairs(shape.Points) do
+        local pointCopy = Vector(point.X, point.Y)
+        table.insert(cache.OriginalPoints, pointCopy)
+        table.insert(cache.ScaledPoints, pointCopy * shape.Scale)
+    end
+    
+    cache.Lookup = {0}
+
+    local segments = PaletteShape.GetNumPolylineSegments(shape.Points, shape.Closed)
+    local totalLength = 0
+
+    for i = 1, segments do
+        local nextIdx
+
+        if shape.Closed then
+            nextIdx = i % #shape.Points + 1
+        else
+            nextIdx = i + 1
+        end
+
+        local length = (cache.ScaledPoints[nextIdx] - cache.ScaledPoints[i]):Length()
+        totalLength = totalLength + length
+        table.insert(cache.Lookup, totalLength)
+    end
+
+    cache.TotalLength = totalLength
+    cache.Scale = Vector(shape.Scale.X, shape.Scale.Y)
+    cache.Closed = shape.Closed
+end
+
+---@param points Vector[]
 ---@param t number
 function PaletteShape.EvaluateBezier(points, t)
     local a = PaletteUtils.LerpVector(points[1], points[2], t)
@@ -410,6 +482,45 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
             local offset = PaletteShape.EvaluateBezier(cache.ScaledPoints, t):Rotated(orientation)
 
             return emitterPosition + offset
+        elseif shape.Type == "Polyline" then
+            if #shape.Points < 2 then
+                return emitterPosition
+            end
+
+            if not PaletteShape.IsPolylineCacheValid(shape) then
+                PaletteShape.RebuildPolylineCache(shape)
+            end
+
+            local cache = shape._PolylineCache
+            if cache.TotalLength <= 0 then
+                return emitterPosition
+            end
+
+            local targetDistance = PaletteUtils.GetRandomFloat(0, cache.TotalLength)
+            local lookupIdx = PaletteUtils.BinarySearch(cache.Lookup, targetDistance)
+            lookupIdx = PaletteUtils.Clamp(lookupIdx, 2, #cache.Lookup)
+            local segmentLength = cache.Lookup[lookupIdx] - cache.Lookup[lookupIdx - 1]
+            local t
+
+            if segmentLength <= 0 then
+                t = 0
+            else
+                t = (targetDistance - cache.Lookup[lookupIdx - 1]) / segmentLength
+            end
+
+            local segmentStart = lookupIdx - 1
+            local segmentEnd
+
+            if cache.Closed then
+                segmentEnd = segmentStart % #cache.ScaledPoints + 1
+            else
+                segmentEnd = segmentStart + 1
+            end
+
+            local a = cache.ScaledPoints[segmentStart]
+            local b = cache.ScaledPoints[segmentEnd]
+            local point = PaletteUtils.LerpVector(a, b, t):Rotated(orientation)
+            return emitterPosition + point
         end
         error("Unsupported particle shape: " .. shape.Type)
     end
