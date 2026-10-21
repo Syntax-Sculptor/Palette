@@ -28,6 +28,7 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field ShaderParams table<string, number|number[]>
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
+---@field private _UpdateAccumilator number Because some render callbacks might need to handle particle logic, we use this to stay at a consistent 30 updates per second.
 ---@field private _Particles Particle[]
 ---@field private _ParticlePool Particle[]
 ---@field private _EmitterSourceQuad SourceQuad
@@ -195,6 +196,51 @@ function ParticleEmitter:Destroy()
     self._DestroyFun = nil
 end
 
+function ParticleEmitter:_OnPostPauseScreenRender()
+    if self.RenderMode ~= "AbovePause" then
+        return
+    end
+
+    if self._UpdateAccumilator == 0 then
+        self._UpdateAccumilator = 1
+        self:Update()
+    else
+        self._UpdateAccumilator = self._UpdateAccumilator - 1
+    end
+
+    self:_Render()
+end
+
+function ParticleEmitter:_OnPostRender()
+    if self.RenderMode ~= "AboveHUD" then
+        return
+    end
+
+    if self._UpdateAccumilator == 0 then
+        self._UpdateAccumilator = 1
+        self:Update()
+    else
+        self._UpdateAccumilator = self._UpdateAccumilator - 1
+    end
+
+    self:_Render()
+end
+
+function ParticleEmitter:_OnMainMenuRender()
+    if self.RenderMode ~= "MainMenu" then
+        return
+    end
+
+    if self._UpdateAccumilator == 0 then
+        self._UpdateAccumilator = 1
+        self:Update()
+    else
+        self._UpdateAccumilator = self._UpdateAccumilator - 1
+    end
+
+    self:_Render()
+end
+
 function ParticleEmitter:_OnPostRoomEntitiesRender()
     if self:IsDestroyed() or self.RenderMode ~= "AboveEntities" then
         return
@@ -313,7 +359,7 @@ end
 ---@param positionOffset Vector
 function ParticleEmitter:_InitializeParticle(particle, positionOffset)
     local startSize = PaletteUtils.SampleVector(self.StartScale)
-    local emitterPosition = Vector(self.Position.X, self.Position.Y)
+    local emitterPosition = Vector(self.Position.X, self.Position.Y) + positionOffset
     local spawnPosition = PaletteShape.GetSpawnPosition(
         self.Shape,
         emitterPosition,
@@ -336,7 +382,7 @@ function ParticleEmitter:_InitializeParticle(particle, positionOffset)
     finalDirection = finalDirection:Rotated(spreadAngle)
 
     particle.SpawnPosition = spawnPosition
-    particle.Position = Vector(spawnPosition.X, spawnPosition.Y) + positionOffset
+    particle.Position = Vector(spawnPosition.X, spawnPosition.Y)
     particle.Velocity = finalDirection * PaletteUtils.SampleFloat(self.StartSpeed)
     particle.FrameCount = 0
     particle.Scale = startSize

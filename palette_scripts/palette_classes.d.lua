@@ -21,7 +21,7 @@
 ---@alias PaletteShapeType "Point"|"Circle"|"Rectangle"|"Triangle"|"Line"|"Polygon"|"Capsule"|"Bezier"
 ---@alias DirectionMode "Radial"|"Default"
 ---@alias EmitFrom "Area"|"Edge"
----@alias PaletteRenderMode "AboveEntities"|"Floor"
+---@alias PaletteRenderMode "AboveEntities"|"Floor"|"AbovePause"|"AboveHUD"|"MainMenu"
 
 ---@class PaletteGradient
 ---@field ColorKeys Keyframe<KColor>[]

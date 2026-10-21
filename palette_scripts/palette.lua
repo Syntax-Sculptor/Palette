@@ -22,7 +22,29 @@ end
 
 local function onPostUpdate()
     for _, particleEmitter in ipairs(emitters) do
-        particleEmitter:Update()
+        -- In cases where render modei s HUD-related we don't want the update callback to also call
+        -- this.
+        if particleEmitter.RenderMode == "AboveEntities" or particleEmitter.RenderMode == "Floor" then
+            particleEmitter:Update()
+        end
+    end
+end
+
+local function onPostPauseScreenRender()
+    for _, particleEmitter in ipairs(emitters) do
+        particleEmitter:_OnPostPauseScreenRender()
+    end
+end
+
+local function onPostRender()
+    for _, particleEmitter in ipairs(emitters) do
+        particleEmitter:_OnPostRender()
+    end
+end
+
+local function onMainMenuRender()
+    for _, particleEmitter in ipairs(emitters) do
+        particleEmitter:_OnMainMenuRender()
     end
 end
 
@@ -56,6 +78,9 @@ function Palette:Init(mod)
 
     mod:AddCallback(ModCallbacks.MC_PRE_BACKDROP_RENDER_WALLS, onPreBackdropRenderWalls)
     mod:AddCallback(ModCallbacks.MC_POST_ROOM_RENDER_ENTITIES, onPostRoomRenderEntities)
+    mod:AddCallback(ModCallbacks.MC_POST_PAUSE_SCREEN_RENDER, onPostPauseScreenRender)
+    mod:AddCallback(ModCallbacks.MC_POST_RENDER, onPostRender)
+    mod:AddCallback(ModCallbacks.MC_MAIN_MENU_RENDER, onMainMenuRender)
     mod:AddCallback(ModCallbacks.MC_POST_UPDATE, onPostUpdate)
     mod:AddCallback(ModCallbacks.MC_PRE_NEW_ROOM, destroyNonPersistentEmitters)
     mod:AddCallback(ModCallbacks.MC_PRE_GAME_EXIT, destroyNonPersistentEmitters)
@@ -148,6 +173,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
         Shader = nil,
         ShaderParams = {},
 
+        _UpdateAccumilator = 0,
         _IsDestroyed = false,
         _EmissionAccumulator = 0,
         _IsEmitting = true,
