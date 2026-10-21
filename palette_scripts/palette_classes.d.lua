@@ -92,12 +92,8 @@
 ---@field ScaledPoints Vector[]
 ---@field Resolution number
 ---@field Scale Vector
----@field Lookup BezierLookup[]
+---@field Lookup number[]
 ---@field TotalLength number
-
----@class BezierLookup
----@field T number
----@field Length number
 
 ---@class PolylineCache
 ---@field OriginalPoints Vector[]

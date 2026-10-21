@@ -2,14 +2,40 @@ local PaletteShape = {}
 
 local PaletteUtils = include("palette_scripts.palette_utils")
 
+-- Returns how much of an elipse's outline is covered from the angle.
 ---@param angle number
 ---@param a number
 ---@param b number
-function PaletteShape.GetCircleWeight(angle, a, b)
+function PaletteShape.GetElipseArcLengthRate(angle, a, b)
     return math.sqrt(
         (a * math.sin(angle)) ^ 2 +
         (b * math.cos(angle)) ^ 2
     )
+end
+
+---@param points Vector[]
+---@param closed boolean
+---@return number[], number
+function PaletteShape.BuildPathLookup(points, closed)
+    local totalLength = 0
+    local segments = PaletteShape.GetNumPolylineSegments(points, closed)
+    local lookup = { 0 }
+
+    for i = 1, segments do
+        local nextIdx
+
+        if closed then
+            nextIdx = i % #points + 1
+        else
+            nextIdx = i + 1
+        end
+
+        local length = (points[nextIdx] - points[i]):Length()
+        totalLength = totalLength + length
+        table.insert(lookup, totalLength)
+    end
+
+    return lookup, totalLength
 end
 
 ---@param points Vector[]
@@ -23,11 +49,49 @@ function PaletteShape.GetNumPolylineSegments(points, closed)
     end
 end
 
+---@param points Vector[]
+---@param lookup number[]
+---@param totalLength number
+---@param closed boolean
+function PaletteShape.SamplePath(points, lookup, totalLength, closed)
+    if totalLength <= 0 then
+        return Vector.Zero
+    end
+
+    local targetDistance = PaletteUtils.GetRandomFloat(0, totalLength)
+    local lookupIdx = PaletteUtils.BinarySearch(lookup, targetDistance)
+    lookupIdx = PaletteUtils.Clamp(lookupIdx, 2, #lookup)
+    local left = lookup[lookupIdx - 1]
+    local right = lookup[lookupIdx]
+    local segmentLength = right - left
+    local t
+
+    if segmentLength <= 0 then
+        t = 0
+    else
+        t = (targetDistance - lookup[lookupIdx - 1]) / segmentLength
+    end
+
+    local segmentStart = lookupIdx - 1
+    local segmentEnd
+
+    if closed then
+        segmentEnd = segmentStart % #points + 1
+    else
+        segmentEnd = segmentStart + 1
+    end
+
+    local a = points[segmentStart]
+    local b = points[segmentEnd]
+
+    return PaletteUtils.LerpVector(a, b, t)
+end
+
 ---@param shape PaletteShapeConfig
 function PaletteShape.IsPolylineCacheValid(shape)
     local cache = shape._PolylineCache
-    
-    if 
+
+    if
         #shape.Points ~= #cache.OriginalPoints
         or shape.Closed ~= cache.Closed
         or shape.Scale.X ~= cache.Scale.X
@@ -48,6 +112,15 @@ function PaletteShape.IsPolylineCacheValid(shape)
     return true
 end
 
+---@param index number
+---@param sideCount number
+---@param radius number
+---@param scale Vector
+function PaletteShape.GetPolygonVertex(index, sideCount, radius, scale)
+    local angle = 2 * math.pi * index / sideCount
+    return Vector(radius * math.cos(angle), radius * math.sin(angle)) * scale
+end
+
 ---@param shape PaletteShapeConfig
 function PaletteShape.RebuildPolylineCache(shape)
     local cache = shape._PolylineCache
@@ -59,26 +132,10 @@ function PaletteShape.RebuildPolylineCache(shape)
         table.insert(cache.OriginalPoints, pointCopy)
         table.insert(cache.ScaledPoints, pointCopy * shape.Scale)
     end
-    
-    cache.Lookup = {0}
 
-    local segments = PaletteShape.GetNumPolylineSegments(shape.Points, shape.Closed)
-    local totalLength = 0
+    local lookup, totalLength = PaletteShape.BuildPathLookup(cache.ScaledPoints, shape.Closed)
 
-    for i = 1, segments do
-        local nextIdx
-
-        if shape.Closed then
-            nextIdx = i % #shape.Points + 1
-        else
-            nextIdx = i + 1
-        end
-
-        local length = (cache.ScaledPoints[nextIdx] - cache.ScaledPoints[i]):Length()
-        totalLength = totalLength + length
-        table.insert(cache.Lookup, totalLength)
-    end
-
+    cache.Lookup = lookup
     cache.TotalLength = totalLength
     cache.Scale = Vector(shape.Scale.X, shape.Scale.Y)
     cache.Closed = shape.Closed
@@ -116,6 +173,73 @@ function PaletteShape.GetPointInTriangle(a, b, c)
     return a + u * (b - a) + v * (c - a)
 end
 
+---@param isRight boolean
+function PaletteShape.GetCapAngle(isRight)
+    if isRight then
+        return PaletteUtils.GetRandomFloat(-math.pi / 2, math.pi / 2)
+    else
+        return PaletteUtils.GetRandomFloat(math.pi / 2, 3 * math.pi / 2)
+    end
+end
+
+---@param shape PaletteShapeConfig
+function PaletteShape.IsBezierCacheValid(shape)
+    local cache = shape._BezierCache
+    local resolution = math.max(1, math.floor(shape.CurveResolution))
+
+    if
+        resolution ~= cache.Resolution
+        or #shape.Points ~= #cache.OriginalPoints
+        or shape.Scale.X ~= cache.Scale.X
+        or shape.Scale.Y ~= cache.Scale.Y
+        or #cache.Lookup ~= resolution + 1
+    then
+        return false
+    end
+
+    for i = 1, #shape.Points do
+        local a = shape.Points[i]
+        local b = cache.OriginalPoints[i]
+        if a.X ~= b.X or a.Y ~= b.Y then
+            return false
+        end
+    end
+
+    return true
+end
+
+---@param shape PaletteShapeConfig
+function PaletteShape.RebuildBezierCache(shape)
+    local cache = shape._BezierCache
+    local resolution = math.max(1, math.floor(shape.CurveResolution))
+
+    cache.OriginalPoints = {}
+    cache.ScaledPoints = {}
+
+    for _, point in ipairs(shape.Points) do
+        local pointCopy = Vector(point.X, point.Y)
+        table.insert(cache.OriginalPoints, pointCopy)
+        table.insert(cache.ScaledPoints, pointCopy * shape.Scale)
+    end
+
+    local lookup = { 0 }
+    local totalLength = 0
+    local previousPoint = PaletteShape.EvaluateBezier(cache.ScaledPoints, 0)
+
+    -- Approximate the curve with small line segments. lookup[i] is the length up to t = (i - 1) / resolution.
+    for i = 1, resolution do
+        local currentPoint = PaletteShape.EvaluateBezier(cache.ScaledPoints, i / resolution)
+        totalLength = totalLength + (currentPoint - previousPoint):Length()
+        table.insert(lookup, totalLength)
+        previousPoint = currentPoint
+    end
+
+    cache.Resolution = resolution
+    cache.Lookup = lookup
+    cache.TotalLength = totalLength
+    cache.Scale = Vector(shape.Scale.X, shape.Scale.Y)
+end
+
 ---@param shape PaletteShapeConfig
 ---@param emitterPosition Vector
 ---@param orientation number
@@ -128,11 +252,10 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
     if shape.Type == "Point" then
         return emitterPosition
     elseif shape.Type == "Circle" then
-        local angle = math.rad(PaletteUtils.GetRandomFloat(0, shape.Arc))
-
         if shape.EmitFrom == "Area" then
             -- Inverse Transform Sampling so we can generate a position uniformly distributed inside
             -- the circle's thickness.
+            local angle = math.rad(PaletteUtils.GetRandomFloat(0, shape.Arc))
             local u = PaletteUtils.GetRandom()
             local minRadius = shape.Radius * (1 - shape.RadiusThickness)
             local chosenRadius = math.sqrt(minRadius ^ 2 + u * (shape.Radius ^ 2 - minRadius ^ 2))
@@ -149,11 +272,12 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
             -- shape looks. We use weighted selection to help promote even distribution.
             local a = shape.Radius * shape.Scale.X
             local b = shape.Radius * shape.Scale.Y
-            local maxWeight = math.max(a, b)
+            local maxWeight = math.max(math.abs(a), math.abs(b))
+            local angle
 
             repeat
                 angle = math.rad(PaletteUtils.GetRandomFloat(0, shape.Arc))
-            until PaletteUtils.GetRandom() * maxWeight <= PaletteShape.GetCircleWeight(angle, a, b)
+            until PaletteUtils.GetRandom() * maxWeight <= PaletteShape.GetElipseArcLengthRate(angle, a, b)
 
             local offset = Vector(a * math.cos(angle), b * math.sin(angle)):Rotated(orientation)
             return emitterPosition + offset
@@ -165,6 +289,9 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
         local randY = PaletteUtils.GetRandomFloat(-height / 2, height / 2)
 
         if shape.EmitFrom == "Edge" then
+            -- Because rectangles are uneven shapes, we need to ensure particles are evenly
+            -- distrubted.
+
             -- Weight each pair of edges by its length for uniform perimeter sampling.
             local choice = PaletteUtils.GetRandomFloat(0, width + height)
 
@@ -188,29 +315,10 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
         local c = shape.Vertices[3] * shape.Scale
 
         if shape.EmitFrom == "Edge" then
-            local lengthAB = (a - b):Length()
-            local lengthBC = (b - c):Length()
-            local lengthCA = (c - a):Length()
-            local perimeter = lengthAB + lengthBC + lengthCA
-            local u = PaletteUtils.GetRandom()
-
-            local choice = PaletteUtils.GetRandomFloat(0, perimeter)
-            local startVertex, endVertex
-
-            if choice < lengthAB then
-                startVertex = a
-                endVertex = b
-            elseif choice < lengthAB + lengthBC then
-                startVertex = b
-                endVertex = c
-            else
-                startVertex = c
-                endVertex = a
-            end
-
-            local point = startVertex + u * (endVertex - startVertex)
+            local scaledPoints = { a, b, c }
+            local lookup, totalLength = PaletteShape.BuildPathLookup(scaledPoints, true)
+            local point = PaletteShape.SamplePath(scaledPoints, lookup, totalLength, true)
             point = point:Rotated(orientation)
-
             return emitterPosition + point
         else
             local offset = PaletteShape.GetPointInTriangle(a, b, c):Rotated(orientation)
@@ -224,59 +332,18 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
     elseif shape.Type == "Polygon" then
         local sideCount = math.max(3, math.floor(shape.Sides))
 
-        ---@type Vector[]
-        local vertices = {}
-
-        for i = 1, sideCount do
-            local angle = (2 * math.pi * i) / sideCount
-            local vertex = Vector(shape.Radius * math.cos(angle), shape.Radius * math.sin(angle)) * shape.Scale
-            table.insert(vertices, vertex)
-        end
-
-        local lengths = {}
-        local perimeter = 0
-
-        -- If we set the shape's scale, each side has uneven length. We need to use weighted selection
-        -- To get around this.
-
-        for i = 1, sideCount do
-            local nextIndex = i % sideCount + 1
-            local length = (vertices[nextIndex] - vertices[i]):Length()
-
-            lengths[i] = length
-            perimeter = perimeter + length
-        end
-
         if shape.EmitFrom == "Edge" then
-            local lengths = {}
-            local perimeter = 0
+            ---@type Vector[]
+            local vertices = {}
 
             for i = 1, sideCount do
-                local nextIndex = i % sideCount + 1
-                local length = (vertices[nextIndex] - vertices[i]):Length()
-
-                lengths[i] = length
-                perimeter = perimeter + length
+                local vertex = PaletteShape.GetPolygonVertex(i, sideCount, shape.Radius, shape.Scale)
+                table.insert(vertices, vertex)
             end
 
-            local choice = PaletteUtils.GetRandomFloat(0, perimeter)
-            local index = sideCount
-
-            for i = 1, sideCount do
-                if choice < lengths[i] then
-                    index = i
-                    break
-                end
-
-                choice = choice - lengths[i]
-            end
-
-            local nextIndex = index % sideCount + 1
-            local a = vertices[index]
-            local b = vertices[nextIndex]
-
-            local t = PaletteUtils.GetRandom()
-            local point = (a + (b - a) * t):Rotated(orientation)
+            local lookup, totalLength = PaletteShape.BuildPathLookup(vertices, true)
+            local point = PaletteShape.SamplePath(vertices, lookup, totalLength, true)
+            point = point:Rotated(orientation)
 
             return emitterPosition + point
         else
@@ -285,8 +352,8 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
             local index = PaletteUtils.GetRandomInt(1, sideCount)
             local nextIndex = index % sideCount + 1
 
-            local a = vertices[index]
-            local b = vertices[nextIndex]
+            local a = PaletteShape.GetPolygonVertex(index, sideCount, shape.Radius, shape.Scale)
+            local b = PaletteShape.GetPolygonVertex(nextIndex, sideCount, shape.Radius, shape.Scale)
 
             local point = PaletteShape.GetPointInTriangle(
                 a, b, Vector.Zero
@@ -295,16 +362,21 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
             return emitterPosition + point
         end
     elseif shape.Type == "Capsule" then
-        local halfStraight = shape.Length / 2 - shape.Radius
+        local halfStraight = math.max(0, shape.Length / 2 - shape.Radius)
 
         if shape.EmitFrom == "Area" then
             local rectangularArea = 4 * halfStraight * shape.Radius
             local capsuleArea = math.pi * shape.Radius ^ 2
             local totalArea = rectangularArea + capsuleArea
+
+            if totalArea <= 0 then
+                return emitterPosition
+            end
+
             local rectangleChance = rectangularArea / totalArea
             local chance = PaletteUtils.GetRandom()
 
-            -- Obviously a capsule has a rectanguilar region followed by a semi-circle region at its
+            -- Obviously a capsule has a rectangular region followed by a semi-circle region at its
             -- ends. Pick one randomly.
             if chance <= rectangleChance then
                 local x = PaletteUtils.GetRandomFloat(-halfStraight, halfStraight)
@@ -312,15 +384,8 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
                 local offset = (Vector(x, y) * shape.Scale):Rotated(orientation)
                 return emitterPosition + offset
             else
-                -- First pick a random angle within the semi-circle.
                 local isRight = PaletteUtils.GetRandom() < 0.5
-                local angle
-
-                if isRight then
-                    angle = PaletteUtils.GetRandomFloat(-math.pi / 2, math.pi / 2)
-                else
-                    angle = PaletteUtils.GetRandomFloat(math.pi / 2, 3 * math.pi / 2)
-                end
+                local angle = PaletteShape.GetCapAngle(isRight)
 
                 -- Offset the point.
                 local r = shape.Radius * math.sqrt(PaletteUtils.GetRandom())
@@ -340,29 +405,29 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
             local straightLength = 4 * halfStraight
             local curveLength = 2 * math.pi * shape.Radius
             local perimeter = straightLength + curveLength
+
+            if perimeter <= 0 then
+                return emitterPosition
+            end
+
             local straightChance = straightLength / perimeter
             local offset
             local weight
 
-            local maxWeight = math.max(shape.Scale.X, shape.Scale.Y)
+            local maxWeight = math.max(math.abs(shape.Scale.X), math.abs(shape.Scale.Y))
 
             -- Weighted distribution since capsules are uneven shapes.
             repeat
                 if PaletteUtils.GetRandom() < straightChance then
                     local x = PaletteUtils.GetRandomFloat(-halfStraight, halfStraight)
                     local y = PaletteUtils.GetRandom() < 0.5 and -shape.Radius or shape.Radius
-                    weight = shape.Scale.X
+
+                    -- We need to math.abs the scale so the weight doesn't become negative.
+                    weight = math.abs(shape.Scale.X)
                     offset = Vector(x, y)
                 else
                     local isRight = PaletteUtils.GetRandom() < 0.5
-                    local angle
-
-                    if isRight then
-                        angle = PaletteUtils.GetRandomFloat(-math.pi / 2, math.pi / 2)
-                    else
-                        angle = PaletteUtils.GetRandomFloat(math.pi / 2, 3 * math.pi / 2)
-                    end
-
+                    local angle = PaletteShape.GetCapAngle(isRight)
                     local x = shape.Radius * math.cos(angle)
 
                     if isRight then
@@ -374,154 +439,85 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
                     local y = math.sin(angle) * shape.Radius
 
                     offset = Vector(x, y)
-                    weight = PaletteShape.GetCircleWeight(angle, shape.Scale.X, shape.Scale.Y)
+
+                    weight = PaletteShape.GetElipseArcLengthRate(angle, shape.Scale.X, shape.Scale.Y)
                 end
             until PaletteUtils.GetRandom() * maxWeight <= weight
 
             return emitterPosition + (offset * shape.Scale):Rotated(orientation)
         end
-    else if shape.Type == "Bezier" then
-            -- De Casteljau algorithm implementation.
-            -- With how many particles can be present on the screen, this can be extremely performance
-            -- intensive, so we opt for caching instead. And to uniformly sample our arcs we just
-            -- perform a binary search and cumulative-distance lookup table.
-
-            -- I genuinely don't know what I'm doing writing this for the most part since I just copied
-            -- most of the algorithm blindly, this math hurts my brain :(
-
-            local points = shape.Points
-            local resolution = shape.CurveResolution
-            local cache = shape._BezierCache
-
-            local isCacheValid = cache.Resolution == resolution
-                and cache.Scale.X == shape.Scale.X
-                and cache.Scale.Y == shape.Scale.Y
-                and #cache.OriginalPoints == #points
-                and #cache.Lookup == resolution + 1
-                and cache.TotalLength > 0
-
-            if isCacheValid then
-                for i = 1, #points do
-                    local current = points[i]
-                    local previous = cache.OriginalPoints[i]
-
-                    if current.X ~= previous.X or current.Y ~= previous.Y then
-                        isCacheValid = false
-                        break
-                    end
-                end
-            end
-
-            if not isCacheValid then
-                ---@type Vector[]
-                local scaledPoints = {}
-                ---@type Vector[]
-                local originalPoints = {}
-
-                for i = 1, #points do
-                    local point = points[i]
-                    originalPoints[i] = Vector(point.X, point.Y)
-                    scaledPoints[i] = point * shape.Scale
-                end
-
-                ---@type BezierLookup[]
-                local lookup = {
-                    { T = 0, Length = 0 }
-                }
-
-                local totalLength = 0
-                local previousPoint = PaletteShape.EvaluateBezier(scaledPoints, 0)
-
-                -- Approximate the curve with small line segments.
-                for i = 1, resolution do
-                    local t = i / resolution
-                    local currentPoint = PaletteShape.EvaluateBezier(scaledPoints, t)
-
-                    local distance = (currentPoint - previousPoint):Length()
-                    totalLength = totalLength + distance
-
-                    table.insert(lookup, { T = t, Length = totalLength })
-
-                    previousPoint = currentPoint
-                end
-
-                cache = {
-                    OriginalPoints = originalPoints,
-                    ScaledPoints = scaledPoints,
-                    Resolution = resolution,
-                    Scale = Vector(shape.Scale.X, shape.Scale.Y),
-                    Lookup = lookup,
-                    TotalLength = totalLength
-                }
-
-                shape._BezierCache = cache
-            end
-
-            -- Select a uniformly random distance along the curve.
-            local targetDistance = PaletteUtils.GetRandomFloat(0, cache.TotalLength)
-
-            -- Binary search for the surrounding lookup entries just for more optimization compared
-            -- to linear searches (ew).
-            local index = PaletteUtils.BinarySearchDictionary(cache.Lookup, targetDistance, "Length")
-            index = math.max(2, math.min(index, #cache.Lookup))
-            local lookup = cache.Lookup
-
-            -- ... Aaand final interpolation.
-            local left = lookup[index - 1]
-            local right = lookup[index]
-
-            local segmentLength = right.Length - left.Length
-
-            local alpha = 0
-
-            if segmentLength > 0 then
-                alpha = (targetDistance - left.Length) / segmentLength
-            end
-
-            local t = PaletteUtils.Lerp(left.T, right.T, alpha)
-            local offset = PaletteShape.EvaluateBezier(cache.ScaledPoints, t):Rotated(orientation)
-
-            return emitterPosition + offset
-        elseif shape.Type == "Polyline" then
-            if #shape.Points < 2 then
-                return emitterPosition
-            end
-
-            if not PaletteShape.IsPolylineCacheValid(shape) then
-                PaletteShape.RebuildPolylineCache(shape)
-            end
-
-            local cache = shape._PolylineCache
-            if cache.TotalLength <= 0 then
-                return emitterPosition
-            end
-
-            local targetDistance = PaletteUtils.GetRandomFloat(0, cache.TotalLength)
-            local lookupIdx = PaletteUtils.BinarySearch(cache.Lookup, targetDistance)
-            lookupIdx = PaletteUtils.Clamp(lookupIdx, 2, #cache.Lookup)
-            local segmentLength = cache.Lookup[lookupIdx] - cache.Lookup[lookupIdx - 1]
-            local t
-
-            if segmentLength <= 0 then
-                t = 0
-            else
-                t = (targetDistance - cache.Lookup[lookupIdx - 1]) / segmentLength
-            end
-
-            local segmentStart = lookupIdx - 1
-            local segmentEnd
-
-            if cache.Closed then
-                segmentEnd = segmentStart % #cache.ScaledPoints + 1
-            else
-                segmentEnd = segmentStart + 1
-            end
-
-            local a = cache.ScaledPoints[segmentStart]
-            local b = cache.ScaledPoints[segmentEnd]
-            local point = PaletteUtils.LerpVector(a, b, t):Rotated(orientation)
-            return emitterPosition + point
+    elseif shape.Type == "Bezier" then
+        if #shape.Points < 3 then
+            return emitterPosition
         end
+
+        if not PaletteShape.IsBezierCacheValid(shape) then
+            PaletteShape.RebuildBezierCache(shape)
+        end
+
+        local cache = shape._BezierCache
+        if cache.TotalLength <= 0 then
+            return emitterPosition
+        end
+
+        -- t isn't evenly spaced along the curve, so we pick a distance and convert it back to t.
+        local targetDistance = PaletteUtils.GetRandomFloat(0, cache.TotalLength)
+        local lookupIdx = PaletteUtils.BinarySearch(cache.Lookup, targetDistance)
+        lookupIdx = PaletteUtils.Clamp(lookupIdx, 2, #cache.Lookup)
+
+        local left = cache.Lookup[lookupIdx - 1]
+        local right = cache.Lookup[lookupIdx]
+        local segmentLength = right - left
+        local alpha = 0
+
+        if segmentLength > 0 then
+            alpha = (targetDistance - left) / segmentLength
+        end
+
+        local t = (lookupIdx - 2 + alpha) / cache.Resolution
+        local point = PaletteShape.EvaluateBezier(cache.ScaledPoints, t):Rotated(orientation)
+
+        return emitterPosition + point
+    elseif shape.Type == "Polyline" then
+        if #shape.Points < 2 then
+            return emitterPosition
+        end
+
+        if not PaletteShape.IsPolylineCacheValid(shape) then
+            PaletteShape.RebuildPolylineCache(shape)
+        end
+
+        local cache = shape._PolylineCache
+        if cache.TotalLength <= 0 then
+            return emitterPosition
+        end
+
+        local targetDistance = PaletteUtils.GetRandomFloat(0, cache.TotalLength)
+        local lookupIdx = PaletteUtils.BinarySearch(cache.Lookup, targetDistance)
+        lookupIdx = PaletteUtils.Clamp(lookupIdx, 2, #cache.Lookup)
+        local segmentLength = cache.Lookup[lookupIdx] - cache.Lookup[lookupIdx - 1]
+        local t
+
+        if segmentLength <= 0 then
+            t = 0
+        else
+            t = (targetDistance - cache.Lookup[lookupIdx - 1]) / segmentLength
+        end
+
+        local segmentStart = lookupIdx - 1
+        local segmentEnd
+
+        if cache.Closed then
+            segmentEnd = segmentStart % #cache.ScaledPoints + 1
+        else
+            segmentEnd = segmentStart + 1
+        end
+
+        local a = cache.ScaledPoints[segmentStart]
+        local b = cache.ScaledPoints[segmentEnd]
+        local point = PaletteUtils.LerpVector(a, b, t):Rotated(orientation)
+        return emitterPosition + point
+    else
         error("Unsupported particle shape: " .. shape.Type)
     end
 end

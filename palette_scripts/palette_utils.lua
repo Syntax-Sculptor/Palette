@@ -168,26 +168,6 @@ function PaletteUtils.SampleKColor(rangeOrFixed, rngOrSeed)
     end
 end
 
----@param array table[]
----@param target number
----@param key string
-function PaletteUtils.BinarySearchDictionary(array, target, key)
-    local low = 1
-    local high = #array + 1
-
-    while low < high do
-        local mid = math.floor((low + high) / 2)
-
-        if mid <= #array and array[mid][key] < target then
-            low = mid + 1
-        else
-            high = mid
-        end
-    end
-
-    return low
-end
-
 ---@param x number
 ---@param a number
 ---@param b number
