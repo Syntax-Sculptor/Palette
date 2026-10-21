@@ -308,8 +308,7 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
 
             return emitterPosition + (offset * shape.Scale):Rotated(orientation)
         end
-    else
-        if shape.Type == "Bezier" then
+    else if shape.Type == "Bezier" then
             -- De Casteljau algorithm implementation.
             -- With how many particles can be present on the screen, this can be extremely performance
             -- intensive, so we opt for caching instead. And to uniformly sample our arcs we just
