@@ -121,6 +121,25 @@ function PaletteShape.GetPolygonVertex(index, sideCount, radius, scale)
     return Vector(radius * math.cos(angle), radius * math.sin(angle)) * scale
 end
 
+---@param index integer
+---@param sideCount integer
+---@param radius number
+---@param innerRatio number
+---@param scale Vector
+function PaletteShape.GetStarVertex(index, sideCount, radius, innerRatio, scale)
+    local vertexCount = sideCount * 2
+    local angle = -math.pi / 2 + 2 * math.pi * (index - 1) / vertexCount
+    local finalRadius
+
+    if index % 2 ~= 0 then
+        finalRadius = radius
+    else
+        finalRadius = innerRatio * radius
+    end
+
+    return Vector(finalRadius * math.cos(angle), finalRadius * math.sin(angle)) * scale
+end
+
 ---@param shape PaletteShapeConfig
 function PaletteShape.RebuildPolylineCache(shape)
     local cache = shape._PolylineCache
@@ -517,6 +536,38 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
         local b = cache.ScaledPoints[segmentEnd]
         local point = PaletteUtils.LerpVector(a, b, t):Rotated(orientation)
         return emitterPosition + point
+    elseif shape.Type == "Star" then
+        local sides = math.max(3, math.floor(shape.Sides))
+        local innerRatio = math.max(0, shape.InnerRadiusRatio)
+
+        if shape.EmitFrom == "Edge" then
+            local vertices = {}
+
+            for i = 1, sides * 2 do
+                local vertex = PaletteShape.GetStarVertex(
+                    i, 
+                    sides, 
+                    shape.Radius, 
+                    innerRatio, 
+                    shape.Scale
+                )
+                table.insert(vertices, vertex)
+            end
+
+            local lookup, totalLength = PaletteShape.BuildPathLookup(vertices, true)
+            local point = PaletteShape.SamplePath(vertices, lookup, totalLength, true)
+            point = point:Rotated(orientation)
+            return emitterPosition + point
+        else
+            local vertexCount = sides * 2
+            local index = PaletteUtils.GetRandomInt(1, vertexCount)
+            local nextIndex = index % vertexCount + 1
+            local a = PaletteShape.GetStarVertex(index, sides, shape.Radius, innerRatio, shape.Scale)
+            local b = PaletteShape.GetStarVertex(nextIndex, sides, shape.Radius, innerRatio, shape.Scale)
+            local point = PaletteShape.GetPointInTriangle(a, b, Vector.Zero)
+            point = point:Rotated(orientation)
+            return emitterPosition + point
+        end
     else
         error("Unsupported particle shape: " .. shape.Type)
     end

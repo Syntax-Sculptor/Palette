@@ -161,6 +161,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
             Sides = 3,
             Scale = Vector.One,
             Closed = false,
+            InnerRadiusRatio = 0.5,
             
             _BezierCache = {
                 Lookup = {},
@@ -176,7 +177,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
                 Scale = Vector(0, 0),
                 ScaledPoints = {},
                 Closed = false,
-                TotalLength = 0
+                TotalLength = 0,
             },
         },
         RenderMode = "AboveEntities",

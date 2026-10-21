@@ -18,7 +18,7 @@
 
 ---@alias InterpolationMode "Blend"|"Fixed"
 ---@alias CurveMode "Single"|"TwoCurves"
----@alias PaletteShapeType "Point"|"Circle"|"Rectangle"|"Triangle"|"Line"|"Polygon"|"Capsule"|"Bezier"|"Polyline"
+---@alias PaletteShapeType "Point"|"Circle"|"Rectangle"|"Triangle"|"Line"|"Polygon"|"Capsule"|"Bezier"|"Polyline"|"Star"
 ---@alias DirectionMode "Radial"|"Default"
 ---@alias EmitFrom "Area"|"Edge"
 ---@alias PaletteRenderMode "AboveEntities"|"Floor"|"AbovePause"|"AboveHUD"|"MainMenu"
@@ -75,7 +75,8 @@
 ---@field Scale Vector Default: Vector(1, 1)
 ---@field CurveResolution number Default: 67
 ---@field Points Vector[]
----@field Closed boolean
+---@field Closed boolean Default: false
+---@field InnerRadiusRatio number Default: 0.5
 ---@field _BezierCache BezierCache
 ---@field _PolylineCache PolylineCache
 
