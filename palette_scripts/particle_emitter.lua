@@ -366,6 +366,10 @@ function ParticleEmitter:_UpdateParticles()
     end
 end
 
+function ParticleEmitter:IsPendingDestroy()
+    return self._PendingDestroy
+end
+
 ---@param particle Particle
 function ParticleEmitter:_UpdateParticleColor(particle)
     if not self.ColorOverLifetime.Enabled or particle.Lifetime <= 0 then

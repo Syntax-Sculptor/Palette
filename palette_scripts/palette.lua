@@ -34,7 +34,7 @@ local function checkForPendingDestroyedParticles()
     -- Backwards, since Destroy() calls table.remove on `emitters`.
     for i = #emitters, 1, -1 do
         local emitter = emitters[i]
-        if emitter._PendingDestroy then
+        if emitter:IsPendingDestroy() then
             emitter:Destroy()
         end
     end
