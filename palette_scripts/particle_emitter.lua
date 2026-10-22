@@ -326,6 +326,7 @@ function ParticleEmitter:_UpdateParticles()
             local removedParticle = table.remove(self._Particles, i)
             table.insert(self._ParticlePool, removedParticle)
         else
+            self:_ApplyParticleForce(particle)
             local velocity = self:_GetParticleVelocity(particle)
             particle.Position = particle.Position + velocity
 
@@ -380,7 +381,7 @@ function ParticleEmitter:_ApplyParticleForce(particle)
     if limitVelocityOverLifetime.Enabled then
         local speed = particle.Velocity:Length()
         local speedLimit = math.max(0, limitVelocityOverLifetime.Speed)
-        
+
         if speed > speedLimit then
             local newSpeed = PaletteUtils.Lerp(speed, speedLimit, limitVelocityOverLifetime.Dampen)
             particle.Velocity = particle.Velocity * (newSpeed / speed)
