@@ -104,7 +104,7 @@ function ParticleEmitter:Update()
     self:_UpdateParticles()
 
     -- Flag instead of destroying directly. Because Palette calls `Update()` in a loop, calling
-    -- `Destroy()` would make Palette skip the next emitter this frame. The sweep in palette.lua 
+    -- `Destroy()` would make Palette skip the next emitter this frame. The sweep in palette.lua
     -- destroys us afterwards.
     if self._IsFinished and self.DestroyOnFinish and #self._Particles == 0 then
         self._PendingDestroy = true
@@ -133,6 +133,22 @@ end
 
 function ParticleEmitter:GetParticleCount()
     return #self._Particles
+end
+
+-- Restarts particle emission from the very beginning, clearing every particle.
+function ParticleEmitter:Restart()
+    if self:IsDestroyed() then
+        return
+    end
+
+    self:Clear()
+    self._IsFinished = false
+    self._PendingDestroy = false
+    self._EmitterTime = 0
+    self._DelayElapsed = 0
+    self._BurstCycles = {}
+    self._EmissionAccumulator = 0
+    self._IsEmitting = true
 end
 
 --- Spawns multiple particles in a single batches. If the number of particles exceeds or is equal to
@@ -177,22 +193,17 @@ function ParticleEmitter:IsPlaying()
     return self._IsEmitting or #self._Particles > 0
 end
 
---- Enables continuous particle emission.
+--- Resumes. continuous particle emission.
 function ParticleEmitter:Play()
     if self:IsDestroyed() then
         return
     end
 
     if self._IsFinished then
-        self._IsFinished = false
-        self._PendingDestroy = false
-        self._EmitterTime = 0
-        self._DelayElapsed = 0
-        self._BurstCycles = {}
-        self._EmissionAccumulator = 0
+        self:Restart()
+    else
+        self._IsEmitting = true
     end
-
-    self._IsEmitting = true
 end
 
 --- Disables continuous particle emission. This does not clear particles that have already spawned.
