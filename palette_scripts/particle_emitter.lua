@@ -33,6 +33,8 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field Looping boolean Default: true
 ---@field Bursts PaletteBurst[] Default: {}
 ---@field StartDelay integer Default: 0
+---@field DestroyOnFinish boolean If true, the Particle Emitter is destroyed once it reached the end of its duration and all particles has despawned. Default: false
+---@field _PendingDestroy boolean
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
 ---@field private _UpdateAccumilator number Because some render callbacks might need to handle particle logic, we use this to stay at a consistent 30 updates per second.
@@ -101,24 +103,29 @@ function ParticleEmitter:Update()
 
     self:_UpdateParticles()
 
-    if not self:IsEmitting() then
-        return
+    -- Flag instead of destroying directly. Because Palette calls `Update()` in a loop, calling
+    -- `Destroy()` would make Palette skip the next emitter this frame. The sweep in palette.lua 
+    -- destroys us afterwards.
+    if self._IsFinished and self.DestroyOnFinish and #self._Particles == 0 then
+        self._PendingDestroy = true
     end
 
-    if self._DelayElapsed < self.StartDelay then
-        self._DelayElapsed = self._DelayElapsed + 1
-    else
-        self:_UpdateBursts()
-        self:_UpdateContinuousEmission()
-        self._EmitterTime = self._EmitterTime + 1
+    if self:IsEmitting() then
+        if self._DelayElapsed < self.StartDelay then
+            self._DelayElapsed = self._DelayElapsed + 1
+        else
+            self:_UpdateBursts()
+            self:_UpdateContinuousEmission()
+            self._EmitterTime = self._EmitterTime + 1
 
-        if self._EmitterTime >= self.Duration then
-            if self.Looping then
-                self._EmitterTime = 0
-                self._BurstCycles = {}
-            else
-                self._IsFinished = true
-                self:Stop()
+            if self._EmitterTime >= self.Duration then
+                if self.Looping then
+                    self._EmitterTime = 0
+                    self._BurstCycles = {}
+                else
+                    self._IsFinished = true
+                    self:Stop()
+                end
             end
         end
     end
@@ -174,6 +181,15 @@ end
 function ParticleEmitter:Play()
     if self:IsDestroyed() then
         return
+    end
+
+    if self._IsFinished then
+        self._IsFinished = false
+        self._PendingDestroy = false
+        self._EmitterTime = 0
+        self._DelayElapsed = 0
+        self._BurstCycles = {}
+        self._EmissionAccumulator = 0
     end
 
     self._IsEmitting = true
@@ -505,7 +521,7 @@ function ParticleEmitter:_GetParticleVelocity(particle)
 
     if length > 0 then
         local radialVelocity = radialDirection *
-        (velocityOverLifetime.Radial * velocityOverLifetime.SpeedModifier / length)
+            (velocityOverLifetime.Radial * velocityOverLifetime.SpeedModifier / length)
         newVelocity = newVelocity + radialVelocity
     end
 

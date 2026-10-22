@@ -20,34 +20,6 @@ local function onPreBackdropRenderWalls()
     end
 end
 
-local function onPostUpdate()
-    for _, particleEmitter in ipairs(emitters) do
-        -- In cases where render modei s HUD-related we don't want the update callback to also call
-        -- this.
-        if particleEmitter.RenderMode == "AboveEntities" or particleEmitter.RenderMode == "Floor" then
-            particleEmitter:Update()
-        end
-    end
-end
-
-local function onPostPauseScreenRender()
-    for _, particleEmitter in ipairs(emitters) do
-        particleEmitter:_OnPostPauseScreenRender()
-    end
-end
-
-local function onPostRender()
-    for _, particleEmitter in ipairs(emitters) do
-        particleEmitter:_OnPostRender()
-    end
-end
-
-local function onMainMenuRender()
-    for _, particleEmitter in ipairs(emitters) do
-        particleEmitter:_OnMainMenuRender()
-    end
-end
-
 ---@param emitter ParticleEmitter
 local function unregisterEmitter(emitter)
     for i, registeredEmitter in ipairs(emitters) do
@@ -58,8 +30,50 @@ local function unregisterEmitter(emitter)
     end
 end
 
+local function checkForPendingDestroyedParticles()
+    -- Backwards, since Destroy() calls table.remove on `emitters`.
+    for i = #emitters, 1, -1 do
+        local emitter = emitters[i]
+        if emitter._PendingDestroy then
+            emitter:Destroy()
+        end
+    end
+end
+
+local function onPostUpdate()
+    for _, particleEmitter in ipairs(emitters) do
+        -- In cases where render modei s HUD-related we don't want the update callback to also call
+        -- this.
+        if particleEmitter.RenderMode == "AboveEntities" or particleEmitter.RenderMode == "Floor" then
+            particleEmitter:Update()
+        end
+    end
+    checkForPendingDestroyedParticles()
+end
+
+local function onPostPauseScreenRender()
+    for _, particleEmitter in ipairs(emitters) do
+        particleEmitter:_OnPostPauseScreenRender()
+    end
+    checkForPendingDestroyedParticles()
+end
+
+local function onPostRender()
+    for _, particleEmitter in ipairs(emitters) do
+        particleEmitter:_OnPostRender()
+    end
+    checkForPendingDestroyedParticles()
+end
+
+local function onMainMenuRender()
+    for _, particleEmitter in ipairs(emitters) do
+        particleEmitter:_OnMainMenuRender()
+    end
+    checkForPendingDestroyedParticles()
+end
+
 local function destroyNonPersistentEmitters()
-    -- We loop through the emitters backwards since calling :Destroy() on one will cause the 
+    -- We loop through the emitters backwards since calling :Destroy() on one will cause the
     -- `emitters` table to shift due to a call to `table.remove`.
     for i = #emitters, 1, -1 do
         local emitter = emitters[i]
@@ -73,7 +87,7 @@ end
 ---@param mod ModReference
 function Palette:Init(mod)
     assert(not initialized, "Palette has already been initialized")
-    
+
     initialized = true
 
     mod:AddCallback(ModCallbacks.MC_PRE_BACKDROP_RENDER_WALLS, onPreBackdropRenderWalls)
@@ -100,7 +114,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
     end
 
     ---@cast position Vector
-        
+
     local image = Renderer.LoadImage(texturePath)
     local sourceQuad = SourceQuad.NewFromRectangle(Vector.Zero, image:GetWidth(), image:GetHeight())
 
@@ -166,7 +180,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
             Scale = Vector.One,
             Closed = false,
             InnerRadiusRatio = 0.5,
-            
+
             _BezierCache = {
                 Lookup = {},
                 OriginalPoints = {},
@@ -199,6 +213,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
         Looping = true,
         Bursts = {},
         StartDelay = 0,
+        DestroyOnFinish = false,
 
         _DelayElapsed = 0,
         _UpdateAccumilator = 0,
@@ -214,7 +229,8 @@ function Palette:CreateParticleEmitter(texturePath, position)
         _IsPaused = false,
         _IsFinished = false,
         _EmitterTime = 0,
-        _BurstCycles = {}
+        _BurstCycles = {},
+        _PendingDestroy = false,
     }
 
     local ParticleEmitterMT = setmetatable(ParticleEmitterInstance, ParticleEmitter)
