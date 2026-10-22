@@ -32,6 +32,7 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field Duration number Default: true
 ---@field Looping boolean Default: true
 ---@field Bursts PaletteBurst[] Default: {}
+---@field StartDelay integer Default: 0
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
 ---@field private _UpdateAccumilator number Because some render callbacks might need to handle particle logic, we use this to stay at a consistent 30 updates per second.
@@ -46,6 +47,7 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field private _IsPaused boolean
 ---@field private _EmitterTime integer
 ---@field private _IsFinished boolean
+---@field private _DelayElapsed integer
 ---@field _BurstCycles integer[]
 local ParticleEmitter = {}
 ParticleEmitter.__index = ParticleEmitter
@@ -98,10 +100,16 @@ function ParticleEmitter:Update()
     end
 
     self:_UpdateParticles()
-    self:_UpdateBursts()
-    self:_UpdateContinuousEmission()
 
-    if self:IsEmitting() then
+    if not self:IsEmitting() then
+        return
+    end
+
+    if self._DelayElapsed < self.StartDelay then
+        self._DelayElapsed = self._DelayElapsed + 1
+    else
+        self:_UpdateBursts()
+        self:_UpdateContinuousEmission()
         self._EmitterTime = self._EmitterTime + 1
 
         if self._EmitterTime >= self.Duration then
@@ -142,7 +150,7 @@ function ParticleEmitter:Emit(count, positionOffset)
         else
             newParticle = {}
         end
-        
+
         self:_InitializeParticle(newParticle, positionOffset)
 
         ---@cast newParticle Particle
@@ -166,7 +174,7 @@ function ParticleEmitter:Play()
     if self:IsDestroyed() then
         return
     end
-    
+
     self._IsEmitting = true
 end
 
@@ -179,7 +187,6 @@ function ParticleEmitter:Stop()
 
     self._IsEmitting = false
 end
-
 
 --- Returns whether the ParticleEmitter was destroyed.
 function ParticleEmitter:IsDestroyed()
@@ -292,7 +299,7 @@ function ParticleEmitter:_Render()
             renderPos = particle.Position
         end
 
-        local scaledWidth, scaledHeight = 
+        local scaledWidth, scaledHeight =
             imageWidth * particle.Scale.X, imageHeight * particle.Scale.Y
 
         local destinationQuad = DestinationQuad.NewFromRectangle(
@@ -304,10 +311,10 @@ function ParticleEmitter:_Render()
 
         if self.Shader then
             self._RenderImage:RenderWithShader(
-                self._EmitterSourceQuad, 
-                destinationQuad, 
-                particle.Color, 
-                self.Shader, 
+                self._EmitterSourceQuad,
+                destinationQuad,
+                particle.Color,
+                self.Shader,
                 self.ShaderParams
             )
         else
@@ -317,10 +324,6 @@ function ParticleEmitter:_Render()
 end
 
 function ParticleEmitter:_UpdateContinuousEmission()
-    if not self._IsEmitting then
-        return
-    end
-
     self._EmissionAccumulator = self._EmissionAccumulator + self.ParticleRate / GAME_FRAMES_PER_SECOND
 
     local particlesToEmit = math.floor(self._EmissionAccumulator)
@@ -358,22 +361,23 @@ function ParticleEmitter:_UpdateParticles()
     end
 end
 
-
 ---@param particle Particle
 function ParticleEmitter:_UpdateParticleColor(particle)
     if not self.ColorOverLifetime.Enabled or particle.Lifetime <= 0 then
         particle.Color = particle.StartColor
         return
     end
-    
+
     local t = particle.FrameCount / particle.Lifetime
 
     if self.ColorOverLifetime.CurveMode == "Single" then
         local gradientColor = PaletteGradient:Evaluate(self.ColorOverLifetime.Gradient, t, self.ColorOverLifetime.Mode)
         particle.Color = PaletteUtils.MultiplyKColor(particle.StartColor, gradientColor)
     elseif self.ColorOverLifetime.CurveMode == "TwoCurves" then
-        local gradientColorMin = PaletteGradient:Evaluate(self.ColorOverLifetime.GradientMin, t, self.ColorOverLifetime.Mode)
-        local gradientColorMax = PaletteGradient:Evaluate(self.ColorOverLifetime.GradientMax, t, self.ColorOverLifetime.Mode)
+        local gradientColorMin = PaletteGradient:Evaluate(self.ColorOverLifetime.GradientMin, t,
+            self.ColorOverLifetime.Mode)
+        local gradientColorMax = PaletteGradient:Evaluate(self.ColorOverLifetime.GradientMax, t,
+            self.ColorOverLifetime.Mode)
         local gradientColor = PaletteUtils.LerpKColor(gradientColorMin, gradientColorMax, particle.LerpFactor)
         particle.Color = PaletteUtils.MultiplyKColor(particle.StartColor, gradientColor)
     end
@@ -499,7 +503,8 @@ function ParticleEmitter:_GetParticleVelocity(particle)
     local length = radialDirection:Length()
 
     if length > 0 then
-        local radialVelocity = radialDirection * (velocityOverLifetime.Radial * velocityOverLifetime.SpeedModifier / length)
+        local radialVelocity = radialDirection *
+        (velocityOverLifetime.Radial * velocityOverLifetime.SpeedModifier / length)
         newVelocity = newVelocity + radialVelocity
     end
 
@@ -515,7 +520,7 @@ function ParticleEmitter:_GetParticleScale(particle)
     end
 
     local t = particle.FrameCount / particle.Lifetime
-    
+
     return scale * self.SizeOverLifetime:Evaluate(t, particle.LerpFactor)
 end
 
@@ -537,7 +542,7 @@ function ParticleEmitter:_UpdateBursts()
         local cycles = burst.Cycles or 1
         local interval = math.max(1, burst.Interval or 1)
         local probability = burst.Probability or 1
-   
+
         -- Spawn N burss for the cycle.
         while cycles == 0 or numCyclesFired < cycles do
             local fireTime = burst.Time + numCyclesFired * interval

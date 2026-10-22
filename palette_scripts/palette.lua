@@ -198,7 +198,9 @@ function Palette:CreateParticleEmitter(texturePath, position)
         Duration = 150,
         Looping = true,
         Bursts = {},
+        StartDelay = 0,
 
+        _DelayElapsed = 0,
         _UpdateAccumilator = 0,
         _IsDestroyed = false,
         _EmissionAccumulator = 0,
