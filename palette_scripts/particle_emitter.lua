@@ -115,6 +115,7 @@ function ParticleEmitter:Update()
         if self._EmitterTime >= self.Duration then
             if self.Looping then
                 self._EmitterTime = 0
+                self._BurstCycles = {}
             else
                 self._IsFinished = true
                 self:Stop()
