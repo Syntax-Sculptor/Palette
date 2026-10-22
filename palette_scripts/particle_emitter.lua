@@ -50,7 +50,7 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field private _EmitterTime integer
 ---@field private _IsFinished boolean
 ---@field private _DelayElapsed integer
----@field _BurstCycles integer[]
+---@field private _BurstCycles integer[]
 local ParticleEmitter = {}
 ParticleEmitter.__index = ParticleEmitter
 
