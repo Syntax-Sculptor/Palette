@@ -24,6 +24,7 @@
 ---@alias EmitFrom "Area"|"Edge"
 ---@alias PaletteRenderMode "AboveEntities"|"Floor"|"AbovePause"|"AboveHUD"|"MainMenu"
 ---@alias RenderSpace "Local"|"World"
+---@alias InheritVelocityMode "Current"|"Initial"
 
 ---@class PaletteGradient
 ---@field ColorKeys Keyframe<KColor>[]
@@ -121,3 +122,8 @@
 ---@field Cycles integer? Default: 1 Set to 0 to have it burst on every interval.
 ---@field Interval integer? Default: 1
 ---@field Probability number? Default: 1
+
+---@class InheritVelocity
+---@field Enabled boolean Default: false
+---@field Mode InheritVelocityMode Default: "Initial"
+---@field Multiplier number Default: 1

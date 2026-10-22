@@ -34,7 +34,8 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field Bursts PaletteBurst[] Default: {}
 ---@field StartDelay integer Default: 0
 ---@field DestroyOnFinish boolean If true, the Particle Emitter is destroyed once it reached the end of its duration and all particles has despawned. Default: false
----@field _PendingDestroy boolean
+---@field InheritVelocity InheritVelocity
+---@field private _PendingDestroy boolean
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
 ---@field private _UpdateAccumilator number Because some render callbacks might need to handle particle logic, we use this to stay at a consistent 30 updates per second.
@@ -51,11 +52,17 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field private _IsFinished boolean
 ---@field private _DelayElapsed integer
 ---@field private _BurstCycles integer[]
+---@field private _LastPosition Vector | nil
+---@field private _Velocity Vector
 local ParticleEmitter = {}
 ParticleEmitter.__index = ParticleEmitter
 
 function ParticleEmitter:Resume()
     self._IsPaused = false
+
+    -- Set to nil because the particle emitter may have been following an entity/moved around while
+    -- paused. We don't want a huge velocity gap out of the blue.
+    self._LastPosition = nil
 end
 
 function ParticleEmitter:Pause()
@@ -115,6 +122,7 @@ function ParticleEmitter:Restart()
     self._BurstCycles = {}
     self._EmissionAccumulator = 0
     self._IsEmitting = true
+    self._LastPosition = nil
 end
 
 --- Spawns multiple particles in a single batches. If the number of particles exceeds or is equal to
@@ -344,8 +352,11 @@ function ParticleEmitter:_UpdateParticles()
             table.insert(self._ParticlePool, removedParticle)
         else
             self:_ApplyParticleForce(particle)
+
+            local inheritedVelocity = self:_GetInheritedVelocity()
+
             local velocity = self:_GetParticleVelocity(particle)
-            particle.Position = particle.Position + velocity
+            particle.Position = particle.Position + velocity + inheritedVelocity
 
             particle.Scale = self:_GetParticleScale(particle)
             particle.Rotation = self:_GetParticleRotation(particle)
@@ -447,6 +458,12 @@ function ParticleEmitter:_InitializeParticle(particle, positionOffset)
     particle.Gravity = PaletteUtils.SampleFloat(self.GravityModifier)
     particle.Rotation = PaletteUtils.SampleFloat(self.StartRotation)
     particle.LerpFactor = PaletteUtils.GetRandom()
+
+    local inheritVelocity = self.InheritVelocity
+
+    if inheritVelocity.Enabled and inheritVelocity.Mode == "Initial" then
+        particle.Velocity = particle.Velocity + self._Velocity * inheritVelocity.Multiplier
+    end
 
     -- To prevent brief visual artifacts like new particles flickering.
     self:_UpdateParticleColor(particle)
@@ -569,7 +586,16 @@ function ParticleEmitter:_UpdateFollowPosition()
     end
 end
 
+function ParticleEmitter:_UpdateEmitterMotion()
+    if not self._LastPosition then
+        self._LastPosition = Vector(self.Position.X, self.Position.Y)
+    end
+
+    self._Velocity = self.Position - self._LastPosition
+end
+
 function ParticleEmitter:_Tick()
+    self:_UpdateEmitterMotion()
     self:_UpdateParticles()
 
     -- Flag instead of destroying directly. Because Palette calls `Update()` in a loop, calling
@@ -598,6 +624,8 @@ function ParticleEmitter:_Tick()
             end
         end
     end
+
+    self._LastPosition = Vector(self.Position.X, self.Position.Y)
 end
 
 ---@param frames number
@@ -622,6 +650,16 @@ function ParticleEmitter:Prewarm(frames)
 
     for i = 1, frames do
         self:_Tick()
+    end
+end
+
+function ParticleEmitter:_GetInheritedVelocity()
+    local inheritVelocity = self.InheritVelocity
+
+    if inheritVelocity.Enabled and inheritVelocity.Mode == "Current" then
+        return self._Velocity * inheritVelocity.Multiplier
+    else
+        return Vector.Zero
     end
 end
 

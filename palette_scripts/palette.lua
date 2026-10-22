@@ -214,6 +214,11 @@ function Palette:CreateParticleEmitter(texturePath, position)
         Bursts = {},
         StartDelay = 0,
         DestroyOnFinish = false,
+        InheritVelocity = {
+            Enabled = false,
+            Mode = "Initial",
+            Multiplier = 1
+        },
 
         _DelayElapsed = 0,
         _UpdateAccumilator = 0,
@@ -231,6 +236,11 @@ function Palette:CreateParticleEmitter(texturePath, position)
         _EmitterTime = 0,
         _BurstCycles = {},
         _PendingDestroy = false,
+        _Velocity = Vector.Zero,
+
+        -- We're not initializing this to `position` since people may immediately call
+        -- `FollowEntity`, which would cause a huge position jump.
+        _LastPosition = nil
     }
 
     local ParticleEmitterMT = setmetatable(ParticleEmitterInstance, ParticleEmitter)
