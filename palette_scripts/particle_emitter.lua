@@ -35,6 +35,7 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field StartDelay integer Default: 0
 ---@field DestroyOnFinish boolean If true, the Particle Emitter is destroyed once it reached the end of its duration and all particles has despawned. Default: false
 ---@field InheritVelocity InheritVelocity
+---@field RateOverDistance number Default: 0
 ---@field private _PendingDestroy boolean
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
@@ -54,6 +55,7 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field private _BurstCycles integer[]
 ---@field private _LastPosition Vector | nil
 ---@field private _Velocity Vector
+---@field private _DistanceAccumulator number
 local ParticleEmitter = {}
 ParticleEmitter.__index = ParticleEmitter
 
@@ -615,6 +617,7 @@ function ParticleEmitter:_Tick()
         else
             self:_UpdateBursts()
             self:_UpdateContinuousEmission()
+            self:_UpdateDistanceEmission()
             self._EmitterTime = self._EmitterTime + 1
 
             if self._EmitterTime >= self.Duration then
@@ -664,6 +667,29 @@ function ParticleEmitter:_GetInheritedVelocity()
         return self._Velocity * inheritVelocity.Multiplier
     else
         return Vector.Zero
+    end
+end
+
+function ParticleEmitter:_UpdateDistanceEmission()
+    if self.RateOverDistance <= 0 then
+        return
+    end
+
+    local distance = self._Velocity:Length()
+
+    if distance <= 0 then
+        return
+    end
+
+    local before = self._DistanceAccumulator
+    local total = before + distance * self.RateOverDistance
+    local count = math.floor(total)
+
+    self._DistanceAccumulator = total - count
+
+    for i = 1, count do
+        local t = (i - before) / (distance * self.RateOverDistance)
+        self:Emit(1, self._Velocity * -(1 - PaletteUtils.Clamp(t, 0, 1)))
     end
 end
 

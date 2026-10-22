@@ -219,7 +219,9 @@ function Palette:CreateParticleEmitter(texturePath, position)
             Mode = "Initial",
             Multiplier = 1
         },
+        RateOverDistance = 0,
 
+        _DistanceAccumulator = 0,
         _DelayElapsed = 0,
         _UpdateAccumilator = 0,
         _IsDestroyed = false,
