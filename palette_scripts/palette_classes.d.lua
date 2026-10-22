@@ -13,6 +13,7 @@
 ---@field Rotation number
 ---@field Color KColor
 ---@field StartColor KColor
+---@field Gravity number
 ---@field LerpFactor number
 ---@field SpawnPosition Vector
 
@@ -22,6 +23,7 @@
 ---@alias DirectionMode "Radial"|"Default"
 ---@alias EmitFrom "Area"|"Edge"
 ---@alias PaletteRenderMode "AboveEntities"|"Floor"|"AbovePause"|"AboveHUD"|"MainMenu"
+---@alias RenderSpace "Local"|"World"
 
 ---@class PaletteGradient
 ---@field ColorKeys Keyframe<KColor>[]
@@ -29,7 +31,7 @@
 
 ---@class PaletteVelocityOverLifetime
 ---@field Enabled boolean
----@field Space "Local"|"World"
+---@field Space RenderSpace
 ---@field LinearVelocity Vector
 ---@field OrbitalVelocity number Rotation around the orbital center, in degrees per frame. Default: 0
 ---@field OrbitalOffset Vector
@@ -103,3 +105,12 @@
 ---@field Closed boolean
 ---@field Lookup number[]
 ---@field TotalLength number
+
+---@class ForceOverLifetime : PaletteOverLifetime<Vector>
+---@field Space RenderSpace Default: "Local"
+
+---@class LimitVelocityOverLifetime
+---@field Enabled boolean Default: False
+---@field Drag number Default: 0
+---@field Speed number Default: math.huge
+---@field Dampen number Default: 0.5

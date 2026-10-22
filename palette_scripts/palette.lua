@@ -104,6 +104,10 @@ function Palette:CreateParticleEmitter(texturePath, position)
     local image = Renderer.LoadImage(texturePath)
     local sourceQuad = SourceQuad.NewFromRectangle(Vector.Zero, image:GetWidth(), image:GetHeight())
 
+    ---@type ForceOverLifetime
+    local forceOverLifetime = PaletteOverLifetime.New(Vector.Zero)
+    forceOverLifetime.Space = "Local"
+
     ---@type ParticleEmitter
     local ParticleEmitterInstance = {
         IsWorldSpace = true,
@@ -183,6 +187,14 @@ function Palette:CreateParticleEmitter(texturePath, position)
         RenderMode = "AboveEntities",
         Shader = nil,
         ShaderParams = {},
+        GravityModifier = 0,
+        ForceOverLifetime = forceOverLifetime,
+        LimitVelocityOverLifetime = {
+            Enabled = false,
+            Drag = 0,
+            Speed = math.huge,
+            Dampen = 0.5
+        },
 
         _UpdateAccumilator = 0,
         _IsDestroyed = false,

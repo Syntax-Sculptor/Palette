@@ -26,6 +26,9 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field RenderMode PaletteRenderMode  Determines how particles are rendered onto the screen. Default: "AboveEntities"
 ---@field Shader Shader?
 ---@field ShaderParams table<string, number|number[]>
+---@field GravityModifier number | PaletteMinMaxFloat Default: 0
+---@field ForceOverLifetime ForceOverLifetime
+---@field LimitVelocityOverLifetime LimitVelocityOverLifetime
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
 ---@field private _UpdateAccumilator number Because some render callbacks might need to handle particle logic, we use this to stay at a consistent 30 updates per second.
@@ -356,6 +359,38 @@ function ParticleEmitter:_UpdateParticleColor(particle)
 end
 
 ---@param particle Particle
+function ParticleEmitter:_ApplyParticleForce(particle)
+    local forceOverLifetime = self.ForceOverLifetime
+    local limitVelocityOverLifetime = self.LimitVelocityOverLifetime
+    local t = particle.FrameCount / particle.Lifetime
+    local gravityModifier = particle.Gravity
+    particle.Velocity = particle.Velocity + Vector(0, gravityModifier)
+
+    if forceOverLifetime.Enabled then
+        ---@type Vector
+        local force = self.ForceOverLifetime:Evaluate(t, particle.LerpFactor)
+
+        if forceOverLifetime.Space == "Local" then
+            force = force:Rotated(self.Orientation)
+        end
+
+        particle.Velocity = particle.Velocity + force
+    end
+
+    if limitVelocityOverLifetime.Enabled then
+        local speed = particle.Velocity:Length()
+        local speedLimit = math.max(0, limitVelocityOverLifetime.Speed)
+        
+        if speed > speedLimit then
+            local newSpeed = PaletteUtils.Lerp(speed, speedLimit, limitVelocityOverLifetime.Dampen)
+            particle.Velocity = particle.Velocity * (newSpeed / speed)
+        end
+
+        particle.Velocity = particle.Velocity * (1 - limitVelocityOverLifetime.Drag)
+    end
+end
+
+---@param particle Particle
 ---@param positionOffset Vector
 function ParticleEmitter:_InitializeParticle(particle, positionOffset)
     local startSize = PaletteUtils.SampleVector(self.StartScale)
@@ -390,6 +425,7 @@ function ParticleEmitter:_InitializeParticle(particle, positionOffset)
     particle.Color = particle.StartColor
     particle.StartScale = startSize
     particle.Lifetime = PaletteUtils.SampleInteger(self.Lifetime)
+    particle.Gravity = PaletteUtils.SampleFloat(self.GravityModifier)
     particle.Rotation = PaletteUtils.SampleFloat(self.StartRotation)
     particle.LerpFactor = PaletteUtils.GetRandom()
 
@@ -473,5 +509,6 @@ function ParticleEmitter:_GetParticleRotation(particle)
     local t = particle.FrameCount / particle.Lifetime
     return rotation + self.RotationOverLifetime:Evaluate(t, particle.LerpFactor)
 end
+
 
 return ParticleEmitter
