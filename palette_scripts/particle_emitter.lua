@@ -93,42 +93,8 @@ function ParticleEmitter:Update()
         return
     end
 
-    if self._FollowingEntity then
-        if not self._FollowingEntity:Exists() then
-            self._FollowingEntity = nil
-        else
-            self.Position = self._FollowingEntity.Position + self._EntityFollowOffset
-        end
-    end
-
-    self:_UpdateParticles()
-
-    -- Flag instead of destroying directly. Because Palette calls `Update()` in a loop, calling
-    -- `Destroy()` would make Palette skip the next emitter this frame. The sweep in palette.lua
-    -- destroys us afterwards.
-    if self._IsFinished and self.DestroyOnFinish and #self._Particles == 0 then
-        self._PendingDestroy = true
-    end
-
-    if self:IsEmitting() then
-        if self._DelayElapsed < self.StartDelay then
-            self._DelayElapsed = self._DelayElapsed + 1
-        else
-            self:_UpdateBursts()
-            self:_UpdateContinuousEmission()
-            self._EmitterTime = self._EmitterTime + 1
-
-            if self._EmitterTime >= self.Duration then
-                if self.Looping then
-                    self._EmitterTime = 0
-                    self._BurstCycles = {}
-                else
-                    self._IsFinished = true
-                    self:Stop()
-                end
-            end
-        end
-    end
+    self:_UpdateFollowPosition()
+    self:_Tick()
 end
 
 function ParticleEmitter:GetParticleCount()
@@ -590,6 +556,72 @@ function ParticleEmitter:_UpdateBursts()
         end
 
         self._BurstCycles[i] = numCyclesFired
+    end
+end
+
+function ParticleEmitter:_UpdateFollowPosition()
+    if self._FollowingEntity then
+        if not self._FollowingEntity:Exists() then
+            self._FollowingEntity = nil
+        else
+            self.Position = self._FollowingEntity.Position + self._EntityFollowOffset
+        end
+    end
+end
+
+function ParticleEmitter:_Tick()
+    self:_UpdateParticles()
+
+    -- Flag instead of destroying directly. Because Palette calls `Update()` in a loop, calling
+    -- `Destroy()` would make Palette skip the next emitter this frame. The sweep in palette.lua
+    -- destroys it afterwards.
+    if self._IsFinished and self.DestroyOnFinish and #self._Particles == 0 then
+        self._PendingDestroy = true
+    end
+
+    if self:IsEmitting() then
+        if self._DelayElapsed < self.StartDelay then
+            self._DelayElapsed = self._DelayElapsed + 1
+        else
+            self:_UpdateBursts()
+            self:_UpdateContinuousEmission()
+            self._EmitterTime = self._EmitterTime + 1
+
+            if self._EmitterTime >= self.Duration then
+                if self.Looping then
+                    self._EmitterTime = 0
+                    self._BurstCycles = {}
+                else
+                    self._IsFinished = true
+                    self:Stop()
+                end
+            end
+        end
+    end
+end
+
+---@param frames number
+function ParticleEmitter:Prewarm(frames)
+    if self:IsDestroyed() then
+        return
+    end
+
+    if not frames then
+        local lifetime = self.Lifetime
+
+        if type(lifetime) == "table" then
+            lifetime = lifetime.Max
+        end
+
+        ---@diagnostic disable-next-line: cast-local-type
+        frames = lifetime
+    end
+
+    self:_UpdateFollowPosition()
+    self._DelayElapsed = math.max(self._DelayElapsed, self.StartDelay)
+
+    for i = 1, frames do
+        self:_Tick()
     end
 end
 
