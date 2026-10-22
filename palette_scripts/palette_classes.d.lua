@@ -112,7 +112,7 @@
 ---@class LimitVelocityOverLifetime
 ---@field Enabled boolean Default: False
 ---@field Drag number Default: 0
----@field Speed number Default: math.huge
+---@field MaxSpeed number Default: math.huge
 ---@field Dampen number Default: 0.5
 
 ---@class PaletteBurst

@@ -206,7 +206,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
         LimitVelocityOverLifetime = {
             Enabled = false,
             Drag = 0,
-            Speed = math.huge,
+            MaxSpeed = math.huge,
             Dampen = 0.5
         },
         Duration = 150,

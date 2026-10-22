@@ -398,7 +398,7 @@ function ParticleEmitter:_ApplyParticleForce(particle)
 
     if limitVelocityOverLifetime.Enabled then
         local speed = particle.Velocity:Length()
-        local speedLimit = math.max(0, limitVelocityOverLifetime.Speed)
+        local speedLimit = math.max(0, limitVelocityOverLifetime.MaxSpeed)
 
         if speed > speedLimit then
             local newSpeed = PaletteUtils.Lerp(speed, speedLimit, limitVelocityOverLifetime.Dampen)
