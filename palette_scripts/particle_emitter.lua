@@ -29,6 +29,8 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field GravityModifier number | PaletteMinMaxFloat Default: 0
 ---@field ForceOverLifetime ForceOverLifetime
 ---@field LimitVelocityOverLifetime LimitVelocityOverLifetime
+---@field Duration number Default: true
+---@field Looping boolean Default: true
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
 ---@field private _UpdateAccumilator number Because some render callbacks might need to handle particle logic, we use this to stay at a consistent 30 updates per second.
@@ -41,6 +43,8 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field private _FollowingEntity Entity?
 ---@field private _EntityFollowOffset Vector
 ---@field private _IsPaused boolean
+---@field private _EmitterTime integer
+---@field private _IsFinished boolean
 local ParticleEmitter = {}
 ParticleEmitter.__index = ParticleEmitter
 
@@ -93,6 +97,19 @@ function ParticleEmitter:Update()
 
     self:_UpdateParticles()
     self:_UpdateContinuousEmission()
+
+    if self:IsEmitting() then
+        self._EmitterTime = self._EmitterTime + 1
+
+        if self._EmitterTime >= self.Duration then
+            if self.Looping then
+                self._EmitterTime = 0
+            else
+                self._IsFinished = true
+                self:Stop()
+            end
+        end
+    end
 end
 
 function ParticleEmitter:GetParticleCount()

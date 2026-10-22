@@ -195,6 +195,8 @@ function Palette:CreateParticleEmitter(texturePath, position)
             Speed = math.huge,
             Dampen = 0.5
         },
+        Duration = 150,
+        Looping = true,
 
         _UpdateAccumilator = 0,
         _IsDestroyed = false,
@@ -207,6 +209,8 @@ function Palette:CreateParticleEmitter(texturePath, position)
         _DestroyFun = unregisterEmitter,
         _EntityFollowOffset = Vector.Zero,
         _IsPaused = false,
+        _IsFinished = false,
+        _EmitterTime = 0,
     }
 
     local ParticleEmitterMT = setmetatable(ParticleEmitterInstance, ParticleEmitter)
