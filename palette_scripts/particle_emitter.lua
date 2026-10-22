@@ -31,6 +31,7 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field LimitVelocityOverLifetime LimitVelocityOverLifetime
 ---@field Duration number Default: true
 ---@field Looping boolean Default: true
+---@field Bursts PaletteBurst[] Default: {}
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
 ---@field private _UpdateAccumilator number Because some render callbacks might need to handle particle logic, we use this to stay at a consistent 30 updates per second.
@@ -45,6 +46,7 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field private _IsPaused boolean
 ---@field private _EmitterTime integer
 ---@field private _IsFinished boolean
+---@field _BurstCycles integer[]
 local ParticleEmitter = {}
 ParticleEmitter.__index = ParticleEmitter
 
@@ -96,6 +98,7 @@ function ParticleEmitter:Update()
     end
 
     self:_UpdateParticles()
+    self:_UpdateBursts()
     self:_UpdateContinuousEmission()
 
     if self:IsEmitting() then
@@ -528,5 +531,33 @@ function ParticleEmitter:_GetParticleRotation(particle)
     return rotation + self.RotationOverLifetime:Evaluate(t, particle.LerpFactor)
 end
 
+function ParticleEmitter:_UpdateBursts()
+    for i, burst in ipairs(self.Bursts) do
+        local numCyclesFired = self._BurstCycles[i] or 0
+        local cycles = burst.Cycles or 1
+        local interval = math.max(1, burst.Interval or 1)
+        local probability = burst.Probability or 1
+   
+        -- Spawn N burss for the cycle.
+        while cycles == 0 or numCyclesFired < cycles do
+            local fireTime = burst.Time + numCyclesFired * interval
+
+            -- Prevent particle spawning if the burst at the end or past the cycle or the burst
+            -- isn't scheuduled.
+            if fireTime >= self.Duration or fireTime >= self._EmitterTime + 1 then
+                break
+            end
+
+            if PaletteUtils.GetRandom() < probability then
+                local count = PaletteUtils.SampleInteger(burst.Count)
+                self:Emit(count)
+            end
+
+            numCyclesFired = numCyclesFired + 1
+        end
+
+        self._BurstCycles[i] = numCyclesFired
+    end
+end
 
 return ParticleEmitter

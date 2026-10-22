@@ -114,3 +114,10 @@
 ---@field Drag number Default: 0
 ---@field Speed number Default: math.huge
 ---@field Dampen number Default: 0.5
+
+---@class PaletteBurst
+---@field Time number
+---@field Count PaletteMinMaxInteger | integer
+---@field Cycles integer? Default: 1 Set to 0 to have it burst on every interval.
+---@field Interval integer? Default: 1
+---@field Probability number? Default: 1

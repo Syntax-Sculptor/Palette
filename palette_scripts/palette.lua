@@ -197,6 +197,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
         },
         Duration = 150,
         Looping = true,
+        Bursts = {},
 
         _UpdateAccumilator = 0,
         _IsDestroyed = false,
@@ -211,6 +212,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
         _IsPaused = false,
         _IsFinished = false,
         _EmitterTime = 0,
+        _BurstCycles = {}
     }
 
     local ParticleEmitterMT = setmetatable(ParticleEmitterInstance, ParticleEmitter)
