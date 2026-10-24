@@ -220,6 +220,16 @@ function Palette:CreateParticleEmitter(texturePath, position)
             Multiplier = 1
         },
         RateOverDistance = 0,
+        Noise = {
+            Enabled = false,
+            Strength = 1,
+            ScrollSpeed = 0,
+            Damping = false,
+            Frequency = 0.02,
+            PositionAmount = 1,
+            RotationAmount = 0,
+            SizeAmount = 0,
+        },
 
         _DistanceAccumulator = 0,
         _DelayElapsed = 0,
@@ -242,7 +252,9 @@ function Palette:CreateParticleEmitter(texturePath, position)
 
         -- We're not initializing this to `position` since people may immediately call
         -- `FollowEntity`, which would cause a huge position jump.
-        _LastPosition = nil
+        _LastPosition = nil,
+
+        _NoiseTime = 0,
     }
 
     local ParticleEmitterMT = setmetatable(ParticleEmitterInstance, ParticleEmitter)

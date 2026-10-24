@@ -3,6 +3,7 @@ local GAME_FRAMES_PER_SECOND = 30
 local PaletteUtils = include("palette_scripts.palette_utils")
 local PaletteGradient = include("palette_scripts.palette_gradient")
 local PaletteShape = include("palette_scripts.palette_shape")
+local PaletteNoise = include("palette_scripts.palette_noise")
 
 ---@class ParticleEmitter This class defines a `ParticleEmitter`, which is responsible for creating particles and managing them.
 ---@field IsWorldSpace boolean Whether the emitted particles are rendered on the world space or directly onto your screen. Default: True
@@ -36,6 +37,7 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field DestroyOnFinish boolean If true, the Particle Emitter is destroyed once it reached the end of its duration and all particles has despawned. Default: false
 ---@field InheritVelocity InheritVelocity
 ---@field RateOverDistance number Default: 0
+---@field Noise Noise
 ---@field private _PendingDestroy boolean
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
@@ -56,6 +58,7 @@ local PaletteShape = include("palette_scripts.palette_shape")
 ---@field private _LastPosition Vector | nil
 ---@field private _Velocity Vector
 ---@field private _DistanceAccumulator number
+---@field private _NoiseTime integer
 local ParticleEmitter = {}
 ParticleEmitter.__index = ParticleEmitter
 
@@ -125,6 +128,8 @@ function ParticleEmitter:Restart()
     self._EmissionAccumulator = 0
     self._IsEmitting = true
     self._LastPosition = nil
+    self._DistanceAccumulator = 0
+    self._NoiseTime = 0
 end
 
 --- Spawns multiple particles in a single batches. If the number of particles exceeds or is equal to
@@ -353,13 +358,13 @@ function ParticleEmitter:_UpdateParticles()
             local removedParticle = table.remove(self._Particles, i)
             table.insert(self._ParticlePool, removedParticle)
         else
+            particle.NoiseValue = self:_GetParticleNoise(particle)
             self:_ApplyParticleForce(particle)
 
             local inheritedVelocity = self:_GetInheritedVelocity()
-
             local velocity = self:_GetParticleVelocity(particle)
-            particle.Position = particle.Position + velocity + inheritedVelocity
-
+            particle.Position = particle.Position + velocity + inheritedVelocity +
+                particle.NoiseValue * self.Noise.PositionAmount
             particle.Scale = self:_GetParticleScale(particle)
             particle.Rotation = self:_GetParticleRotation(particle)
 
@@ -456,6 +461,7 @@ function ParticleEmitter:_InitializeParticle(particle, positionOffset)
     particle.Position = Vector(spawnPosition.X, spawnPosition.Y)
     particle.Velocity = finalDirection * PaletteUtils.SampleFloat(self.StartSpeed)
     particle.FrameCount = 0
+    particle.NoiseValue = self:_GetParticleNoise(particle)
     particle.Scale = startSize
     particle.StartColor = PaletteUtils.SampleKColor(self.StartColor)
     particle.Color = particle.StartColor
@@ -530,27 +536,36 @@ end
 
 ---@param particle Particle
 function ParticleEmitter:_GetParticleScale(particle)
+    local noise = self.Noise
     local scale = particle.StartScale
-
-    if not self.SizeOverLifetime.Enabled then
-        return scale
-    end
-
     local t = particle.FrameCount / particle.Lifetime
 
-    return scale * self.SizeOverLifetime:Evaluate(t, particle.LerpFactor)
+    if self.SizeOverLifetime.Enabled then
+        scale = scale * self.SizeOverLifetime:Evaluate(t, particle.LerpFactor)
+    end
+
+    if noise.Enabled and noise.SizeAmount ~= 0 then
+        scale = scale * math.max(0, 1 + particle.NoiseValue.Y * noise.SizeAmount)
+    end
+
+    return scale
 end
 
 ---@param particle Particle
 function ParticleEmitter:_GetParticleRotation(particle)
     local rotation = particle.Rotation
+    local noise = self.Noise
+    local t = particle.FrameCount / particle.Lifetime
 
-    if not self.RotationOverLifetime.Enabled then
-        return rotation
+    if self.RotationOverLifetime.Enabled then
+        rotation = rotation + self.RotationOverLifetime:Evaluate(t, particle.LerpFactor)
     end
 
-    local t = particle.FrameCount / particle.Lifetime
-    return rotation + self.RotationOverLifetime:Evaluate(t, particle.LerpFactor)
+    if noise.Enabled then
+        rotation = rotation + particle.NoiseValue.X * self.Noise.RotationAmount / GAME_FRAMES_PER_SECOND
+    end
+
+    return rotation
 end
 
 function ParticleEmitter:_UpdateBursts()
@@ -601,6 +616,7 @@ function ParticleEmitter:_UpdateEmitterMotion()
 end
 
 function ParticleEmitter:_Tick()
+    self._NoiseTime = self._NoiseTime + 1
     self:_UpdateEmitterMotion()
     self:_UpdateParticles()
 
@@ -658,6 +674,26 @@ function ParticleEmitter:Prewarm(frames)
     for i = 1, frames do
         self:_Tick()
     end
+end
+
+---@param particle Particle
+function ParticleEmitter:_GetParticleNoise(particle)
+    local noise = self.Noise
+
+    if not noise.Enabled then
+        return Vector.Zero
+    end
+
+    local x = particle.Position.X * noise.Frequency + self._NoiseTime * noise.ScrollSpeed
+    local y = particle.Position.Y * noise.Frequency
+    local cx, cy = PaletteNoise.Curl2D(x, y)
+    local strength = noise.Strength
+
+    if noise.Damping then
+        strength = strength * noise.Frequency
+    end
+
+    return Vector(cx, cy) * strength
 end
 
 function ParticleEmitter:_GetInheritedVelocity()

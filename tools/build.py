@@ -22,7 +22,8 @@ modules = {
     "palette_scripts.particle_emitter": "palette_scripts/particle_emitter.lua",
     "palette_scripts.palette_keyframes": "palette_scripts/palette_keyframes.lua",
     "palette_scripts.palette_over_lifetime": "palette_scripts/palette_over_lifetime.lua",
-    "palette_scripts.palette_shape": "palette_scripts/palette_shape.lua"
+    "palette_scripts.palette_shape": "palette_scripts/palette_shape.lua",
+    "palette_scripts.palette_noise": "palette_scripts/palette_noise.lua"
 }
 
 # Remove ---@meta tag so the final bundled Lua script isn't treated as a script only for type defs.

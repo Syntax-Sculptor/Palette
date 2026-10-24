@@ -61,7 +61,7 @@ function PaletteUtils.MultiplyKColor(left, right)
 end
 
 --- Returns a random number between 0 (inclusive) and 1 (exclusive).
---- 
+---
 --- You can pass a seed to generate a random number using it. Alternatively, you can pass a `RNG`
 --- object to generate the number (which advances its seed). If you pass nothing, a random number
 --- is generated using Palette's internal RNG object.
@@ -79,7 +79,7 @@ function PaletteUtils.GetRandom(rngOrSeed)
 end
 
 --- Returns a random number between `min` (inclusive) and `max` (exclusive).
---- 
+---
 --- You can pass a seed to generate a random number using it. Alternatively, you can pass a `RNG`
 --- object to generate the number (which advances its seed). If you pass nothing, a random number
 --- is generated using Palette's internal RNG object.
@@ -98,7 +98,7 @@ function PaletteUtils.GetRandomFloat(min, max, rngOrSeed)
 end
 
 --- Returns a random integer between `min` (inclusive) and `max` (inclusive).
---- 
+---
 --- You can pass a seed to generate a random integer using it. Alternatively, you can pass a `RNG`
 --- object to generate the integer (which advances its seed). If you pass nothing, a random integer
 --- is generated using Palette's internal RNG object.
@@ -192,6 +192,15 @@ function PaletteUtils.BinarySearch(array, target)
     end
 
     return low
+end
+
+---Shuffles an array using the Fisher-Yates algorithm.
+---@param t table
+function PaletteUtils.ShuffleTableInPlace(t)
+    for i = #t, 2, -1 do
+        local j = PaletteUtils.GetRandomInt(1, i)
+        t[i], t[j] = t[j], t[i]
+    end
 end
 
 return PaletteUtils

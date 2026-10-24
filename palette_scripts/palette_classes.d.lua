@@ -16,6 +16,7 @@
 ---@field Gravity number
 ---@field LerpFactor number
 ---@field SpawnPosition Vector
+---@field NoiseValue Vector
 
 ---@alias InterpolationMode "Blend"|"Fixed"
 ---@alias CurveMode "Single"|"TwoCurves"
@@ -127,3 +128,13 @@
 ---@field Enabled boolean Default: false
 ---@field Mode InheritVelocityMode Default: "Initial"
 ---@field Multiplier number Default: 1
+
+---@class Noise
+---@field Enabled boolean Default: false
+---@field Strength number Default: 1
+---@field Frequency number Default: 0.02
+---@field ScrollSpeed number Default: 0
+---@field Damping boolean Default: false
+---@field PositionAmount number Default: 1
+---@field RotationAmount number Default: 0
+---@field SizeAmount number Default: 0
