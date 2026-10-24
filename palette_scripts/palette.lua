@@ -252,6 +252,16 @@ function Palette:CreateParticleEmitter(texturePath, position)
             LengthScale = 1,
             SpeedScale = 0,
         },
+        SizeBySpeed = {
+            Enabled = false,
+            SpeedRange = { Min = 0, Max = 10 },
+            Size = PaletteOverLifetime.New(Vector.One)
+        },
+        RotationBySpeed = {
+            Enabled = false,
+            SpeedRange = { Min = 0, Max = 10 },
+            Rotation = PaletteOverLifetime.New(0)
+        },
 
         _DistanceAccumulator = 0,
         _DelayElapsed = 0,

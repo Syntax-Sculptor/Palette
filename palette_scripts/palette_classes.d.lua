@@ -21,6 +21,7 @@
 ---@field SpriteRow integer
 ---@field AlignAngle number
 ---@field Stretch number
+---@field Speed number
 
 ---@alias InterpolationMode "Blend"|"Fixed"
 ---@alias CurveMode "Single"|"TwoCurves"
@@ -161,3 +162,13 @@
 ---@field Offset number Default: 0
 ---@field LengthScale number Default: 1
 ---@field SpeedScale number Default: 0
+
+---@class SizeBySpeed
+---@field Enabled boolean Default: false
+---@field SpeedRange PaletteMinMaxFloat Default: { Min = 0, Max = 10 }
+---@field Size PaletteOverLifetime<Vector>
+
+---@class RotationBySpeed
+---@field Enabled boolean Default: false
+---@field SpeedRange PaletteMinMaxFloat Default: { Min = 0, Max = 10 }
+---@field Rotation PaletteOverLifetime<number>

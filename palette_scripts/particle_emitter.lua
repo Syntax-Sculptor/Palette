@@ -40,6 +40,8 @@ local PaletteNoise = include("palette_scripts.palette_noise")
 ---@field Noise Noise
 ---@field SpriteSheet SpriteSheet
 ---@field AlignToVelocity AlignToVelocity
+---@field SizeBySpeed SizeBySpeed
+---@field RotationBySpeed RotationBySpeed
 ---@field private _PendingDestroy boolean
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
@@ -394,11 +396,13 @@ function ParticleEmitter:_UpdateParticles()
             self:_UpdateSpriteSheet(particle)
 
             local inheritedVelocity = self:_GetInheritedVelocity()
-            local velocity = self:_GetParticleVelocity(particle)
+            local initialVelocity = self:_GetParticleVelocity(particle)
             local previousPosition = particle.Position
-
-            particle.Position = particle.Position + velocity + inheritedVelocity +
+            local finalVelocity = initialVelocity + inheritedVelocity +
                 particle.NoiseValue * self.Noise.PositionAmount
+
+            particle.Position = particle.Position + finalVelocity
+            particle.Speed = finalVelocity:Length()
             particle.Scale = self:_GetParticleScale(particle)
             particle.Rotation = self:_GetParticleRotation(particle)
 
@@ -514,6 +518,8 @@ function ParticleEmitter:_InitializeParticle(particle, positionOffset)
         particle.Velocity = particle.Velocity + self._Velocity * inheritVelocity.Multiplier
     end
 
+    particle.Speed = particle.Velocity:Length()
+
     local sheet = self.SpriteSheet
 
     if sheet.Enabled and sheet.AnimationType == "SingleRow" and sheet.RowMode == "Random" then
@@ -584,9 +590,15 @@ function ParticleEmitter:_GetParticleScale(particle)
     local noise = self.Noise
     local scale = particle.StartScale
     local t = particle.FrameCount / particle.Lifetime
+    local sizeBySpeed = self.SizeBySpeed
 
     if self.SizeOverLifetime.Enabled then
         scale = scale * self.SizeOverLifetime:Evaluate(t, particle.LerpFactor)
+    end
+
+    if sizeBySpeed.Enabled then
+        local speedT = self:_GetNormalizedSpeed(sizeBySpeed.SpeedRange, particle.Speed)
+        scale = scale * sizeBySpeed.Size:Evaluate(speedT, particle.LerpFactor)
     end
 
     if noise.Enabled and noise.SizeAmount ~= 0 then
@@ -601,9 +613,15 @@ function ParticleEmitter:_GetParticleRotation(particle)
     local rotation = particle.Rotation
     local noise = self.Noise
     local t = particle.FrameCount / particle.Lifetime
+    local rotationBySpeed = self.RotationBySpeed
 
     if self.RotationOverLifetime.Enabled then
         rotation = rotation + self.RotationOverLifetime:Evaluate(t, particle.LerpFactor)
+    end
+
+    if rotationBySpeed.Enabled then
+        local speedT = self:_GetNormalizedSpeed(rotationBySpeed.SpeedRange, particle.Speed)
+        rotation = rotation + rotationBySpeed.Rotation:Evaluate(speedT, particle.LerpFactor)
     end
 
     if noise.Enabled then
@@ -840,6 +858,23 @@ function ParticleEmitter:_UpdateAlignment(particle, movement)
     end
 
     particle.Stretch = math.max(0, alignToVelocity.LengthScale + speed * alignToVelocity.SpeedScale)
+end
+
+---@param range PaletteMinMaxFloat
+---@param speed number
+function ParticleEmitter:_GetNormalizedSpeed(range, speed)
+    local min = range.Min
+    local max = range.Max
+
+    if max <= min then
+        if speed < max then
+            return 0
+        else
+            return 1
+        end
+    else
+        return PaletteUtils.Clamp((speed - min) / (max - min), 0, 1)
+    end
 end
 
 return ParticleEmitter
