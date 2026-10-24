@@ -33,6 +33,7 @@
 ---@alias InheritVelocityMode "Current"|"Initial"
 ---@alias AnimationType "WholeSheet"|"SingleRow"
 ---@alias RowMode "Custom"|"Random"
+---@alias SubEmitterTrigger "Spawn"|"Death"
 
 ---@class PaletteGradient
 ---@field ColorKeys Keyframe<KColor>[]
@@ -172,3 +173,24 @@
 ---@field Enabled boolean Default: false
 ---@field SpeedRange PaletteMinMaxFloat Default: { Min = 0, Max = 10 }
 ---@field Rotation PaletteOverLifetime<number>
+
+---@class ColorBySpeed
+---@field Enabled boolean Default: false
+---@field Mode InterpolationMode Default: "Blend"
+---@field SpeedRange PaletteMinMaxFloat Default: { Min = 0, Max = 10 }
+---@field Gradient PaletteGradient
+
+---@class SubEmitterOptions
+---@field Count PaletteMinMaxInteger | integer? Default: 1
+---@field Probability number? Default: 1
+---@field InheritColor boolean? Default: false
+---@field InheritSize boolean? Default: false
+---@field InheritRotation boolean? Default: false
+---@class SubEmitter
+---@field Emitter ParticleEmitter
+---@field Trigger SubEmitterTrigger
+---@field Count PaletteMinMaxInteger | integer
+---@field Probability number
+---@field InheritColor boolean
+---@field InheritSize boolean
+---@field InheritRotation boolean

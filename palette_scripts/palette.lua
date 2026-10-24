@@ -262,6 +262,12 @@ function Palette:CreateParticleEmitter(texturePath, position)
             SpeedRange = { Min = 0, Max = 10 },
             Rotation = PaletteOverLifetime.New(0)
         },
+        ColorBySpeed = {
+            Enabled = false,
+            Mode = "Blend",
+            SpeedRange = { Min = 0, Max = 10 },
+            Gradient = PaletteGradient:New()
+        },
 
         _DistanceAccumulator = 0,
         _DelayElapsed = 0,
@@ -290,6 +296,8 @@ function Palette:CreateParticleEmitter(texturePath, position)
         _SheetColumns = 0,
         _SheetRows = 0,
         _SheetQuads = {},
+        _SubEmitters = {},
+        _ParentEmitter = nil
     }
 
     local ParticleEmitterMT = setmetatable(ParticleEmitterInstance, ParticleEmitter)

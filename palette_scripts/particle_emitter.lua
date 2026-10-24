@@ -42,6 +42,7 @@ local PaletteNoise = include("palette_scripts.palette_noise")
 ---@field AlignToVelocity AlignToVelocity
 ---@field SizeBySpeed SizeBySpeed
 ---@field RotationBySpeed RotationBySpeed
+---@field ColorBySpeed ColorBySpeed
 ---@field private _PendingDestroy boolean
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
@@ -66,6 +67,8 @@ local PaletteNoise = include("palette_scripts.palette_noise")
 ---@field private _SheetQuads SourceQuad[]
 ---@field private _SheetColumns integer
 ---@field private _SheetRows integer
+---@field private _SubEmitters SubEmitter[]
+---@field private _ParentEmitter ParticleEmitter?
 local ParticleEmitter = {}
 ParticleEmitter.__index = ParticleEmitter
 
@@ -145,29 +148,7 @@ end
 ---@param positionOffset Vector? Optional. Default: (0, 0)
 function ParticleEmitter:Emit(count, positionOffset)
     assert(not self:IsDestroyed(), "Attempted to Emit particles on a destroyed ParticleEmitter")
-
-    positionOffset = positionOffset or Vector.Zero
-
-    for i = 1, count do
-        if #self._Particles >= self.MaxParticles then
-            break
-        end
-
-        -- Our Object Pool logic here will reduce the amount of times we need to allocate an entire
-        -- table to save performance.
-        local newParticle
-
-        if #self._ParticlePool > 0 then
-            newParticle = table.remove(self._ParticlePool)
-        else
-            newParticle = {}
-        end
-
-        self:_InitializeParticle(newParticle, positionOffset)
-
-        ---@cast newParticle Particle
-        table.insert(self._Particles, newParticle)
-    end
+    self:_Emit(count, positionOffset)
 end
 
 --- Returns whether continuous particle emission is enabled.
@@ -230,6 +211,23 @@ function ParticleEmitter:Destroy()
     end
 
     self:Clear()
+
+    for _, entry in ipairs(self._SubEmitters) do
+        local subEmitter = entry.Emitter
+        subEmitter._ParentEmitter = nil
+
+        if not subEmitter:IsDestroyed() then
+            subEmitter:Stop()
+            subEmitter.DestroyOnFinish = true
+            subEmitter._IsFinished = true
+        end
+    end
+    self._SubEmitters = {}
+
+    if self._ParentEmitter then
+        self._ParentEmitter:RemoveSubEmitter(self)
+    end
+
     self:_DestroyFun()
 
     self._FollowingEntity = nil
@@ -388,6 +386,7 @@ function ParticleEmitter:_UpdateParticles()
         particle.FrameCount = particle.FrameCount + 1
 
         if particle.FrameCount >= particle.Lifetime then
+            self:_TriggerSubEmitters("Death", particle)
             local removedParticle = table.remove(self._Particles, i)
             table.insert(self._ParticlePool, removedParticle)
         else
@@ -418,24 +417,33 @@ end
 
 ---@param particle Particle
 function ParticleEmitter:_UpdateParticleColor(particle)
-    if not self.ColorOverLifetime.Enabled or particle.Lifetime <= 0 then
-        particle.Color = particle.StartColor
-        return
-    end
-
+    local color = particle.StartColor
+    local colorBySpeed = self.ColorBySpeed
+    local colorOverLifetime = self.ColorOverLifetime
     local t = particle.FrameCount / particle.Lifetime
 
-    if self.ColorOverLifetime.CurveMode == "Single" then
-        local gradientColor = PaletteGradient:Evaluate(self.ColorOverLifetime.Gradient, t, self.ColorOverLifetime.Mode)
-        particle.Color = PaletteUtils.MultiplyKColor(particle.StartColor, gradientColor)
-    elseif self.ColorOverLifetime.CurveMode == "TwoCurves" then
-        local gradientColorMin = PaletteGradient:Evaluate(self.ColorOverLifetime.GradientMin, t,
-            self.ColorOverLifetime.Mode)
-        local gradientColorMax = PaletteGradient:Evaluate(self.ColorOverLifetime.GradientMax, t,
-            self.ColorOverLifetime.Mode)
-        local gradientColor = PaletteUtils.LerpKColor(gradientColorMin, gradientColorMax, particle.LerpFactor)
-        particle.Color = PaletteUtils.MultiplyKColor(particle.StartColor, gradientColor)
+    if colorOverLifetime.Enabled and particle.Lifetime > 0 then
+        if self.ColorOverLifetime.CurveMode == "Single" then
+            local gradientColor = PaletteGradient:Evaluate(colorOverLifetime.Gradient, t,
+                colorOverLifetime.Mode)
+            color = PaletteUtils.MultiplyKColor(particle.StartColor, gradientColor)
+        elseif colorOverLifetime.CurveMode == "TwoCurves" then
+            local gradientColorMin = PaletteGradient:Evaluate(colorOverLifetime.GradientMin, t,
+                colorOverLifetime.Mode)
+            local gradientColorMax = PaletteGradient:Evaluate(colorOverLifetime.GradientMax, t,
+                colorOverLifetime.Mode)
+            local gradientColor = PaletteUtils.LerpKColor(gradientColorMin, gradientColorMax, particle.LerpFactor)
+            color = PaletteUtils.MultiplyKColor(particle.StartColor, gradientColor)
+        end
     end
+
+    if colorBySpeed.Enabled then
+        local speedT = self:_GetNormalizedSpeed(colorBySpeed.SpeedRange, particle.Speed)
+        local gradientColor = PaletteGradient:Evaluate(colorBySpeed.Gradient, speedT, colorBySpeed.Mode)
+        color = PaletteUtils.MultiplyKColor(gradientColor, color)
+    end
+
+    particle.Color = color
 end
 
 ---@param particle Particle
@@ -472,7 +480,9 @@ end
 
 ---@param particle Particle
 ---@param positionOffset Vector
-function ParticleEmitter:_InitializeParticle(particle, positionOffset)
+---@param parentParticle Particle?
+---@param subEmitterEntry SubEmitter?
+function ParticleEmitter:_InitializeParticle(particle, positionOffset, parentParticle, subEmitterEntry)
     local startSize = PaletteUtils.SampleVector(self.StartScale)
     local emitterPosition = Vector(self.Position.X, self.Position.Y) + positionOffset
     local spawnPosition = PaletteShape.GetSpawnPosition(
@@ -516,6 +526,21 @@ function ParticleEmitter:_InitializeParticle(particle, positionOffset)
 
     if inheritVelocity.Enabled and inheritVelocity.Mode == "Initial" then
         particle.Velocity = particle.Velocity + self._Velocity * inheritVelocity.Multiplier
+    end
+
+    if parentParticle and subEmitterEntry then
+        if subEmitterEntry.InheritColor then
+            particle.StartColor = PaletteUtils.MultiplyKColor(particle.StartColor, parentParticle.Color)
+            particle.Color = particle.StartColor
+        end
+
+        if subEmitterEntry.InheritSize then
+            particle.StartScale = particle.StartScale * parentParticle.Scale
+        end
+
+        if subEmitterEntry.InheritRotation then
+            particle.Rotation = particle.Rotation + parentParticle.Rotation
+        end
     end
 
     particle.Speed = particle.Velocity:Length()
@@ -874,6 +899,99 @@ function ParticleEmitter:_GetNormalizedSpeed(range, speed)
         end
     else
         return PaletteUtils.Clamp((speed - min) / (max - min), 0, 1)
+    end
+end
+
+---@param subEmitter ParticleEmitter
+---@param trigger SubEmitterTrigger
+---@param options SubEmitterOptions?
+function ParticleEmitter:AddSubEmitter(subEmitter, trigger, options)
+    assert(not self:IsDestroyed(), "Attempted to add a Sub-Emitter on a destroyed ParticleEmitter")
+    assert(not subEmitter:IsDestroyed(), "Attempted to add a destroyed Sub-Emitter")
+    assert(subEmitter ~= self, "Attempted to make self into a Sub-Emitter")
+    assert(subEmitter._ParentEmitter == nil, "The Sub-Emitter can only have one parent")
+    assert(trigger == "Spawn" or trigger == "Death", 'Sub-Emitter trigger must be "Spawn" or "Death"')
+
+    -- If the subemitter is also any of its ancestors, it can cause undefined behavior.
+    local ancestor = self
+    while ancestor do
+        assert(ancestor ~= subEmitter, "Adding this Sub-Emitter would create a loop")
+        ancestor = ancestor._ParentEmitter
+    end
+
+    local options = options or {}
+    local count = options.Count or 1
+    local probability = options.Probability or 1
+    local inheritRotation = options.InheritRotation or false
+    local inheritSize = options.InheritSize or false
+    local inheritColor = options.InheritColor or false
+
+    subEmitter._ParentEmitter = self
+    subEmitter:Stop()
+    table.insert(self._SubEmitters, {
+        Emitter = subEmitter,
+        Trigger = trigger,
+        Count = count,
+        Probability = probability,
+        InheritColor = inheritColor,
+        InheritSize = inheritSize,
+        InheritRotation = inheritRotation,
+    })
+end
+
+---@param subEmitter ParticleEmitter
+function ParticleEmitter:RemoveSubEmitter(subEmitter)
+    for i, entry in ipairs(self._SubEmitters) do
+        if entry.Emitter == subEmitter then
+            table.remove(self._SubEmitters, i)
+            subEmitter._ParentEmitter = nil
+            return
+        end
+    end
+end
+
+---@param trigger SubEmitterTrigger
+---@param particle Particle
+function ParticleEmitter:_TriggerSubEmitters(trigger, particle)
+    for _, entry in ipairs(self._SubEmitters) do
+        local subEmitter = entry.Emitter
+
+        if entry.Trigger == trigger and not subEmitter:IsDestroyed() and PaletteUtils.GetRandom() < entry.Probability then
+            local count = PaletteUtils.SampleInteger(entry.Count)
+            -- Offset instead of moving the sub-emitter, so other moduels don't see a huge jump in
+            -- position.
+            subEmitter:_Emit(count, particle.Position - subEmitter.Position, particle, entry)
+        end
+    end
+end
+
+---@param count integer
+---@param positionOffset Vector?
+---@param parentParticle Particle?
+---@param subEmitterEntry SubEmitter?
+function ParticleEmitter:_Emit(count, positionOffset, parentParticle, subEmitterEntry)
+    positionOffset = positionOffset or Vector.Zero
+
+    for i = 1, count do
+        if #self._Particles >= self.MaxParticles then
+            break
+        end
+
+        -- Our Object Pool logic here will reduce the amount of times we need to allocate an entire
+        -- table to save performance.
+        local newParticle
+
+        if #self._ParticlePool > 0 then
+            newParticle = table.remove(self._ParticlePool)
+        else
+            newParticle = {}
+        end
+
+        self:_InitializeParticle(newParticle, positionOffset, parentParticle, subEmitterEntry)
+
+        ---@cast newParticle Particle
+        table.insert(self._Particles, newParticle)
+        self:_TriggerSubEmitters("Spawn", newParticle)
     end
 end
 
