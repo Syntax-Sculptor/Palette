@@ -39,6 +39,7 @@ local PaletteNoise = include("palette_scripts.palette_noise")
 ---@field RateOverDistance number Default: 0
 ---@field Noise Noise
 ---@field SpriteSheet SpriteSheet
+---@field AlignToVelocity AlignToVelocity
 ---@field private _PendingDestroy boolean
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
@@ -306,7 +307,7 @@ function ParticleEmitter:_Render()
     local spriteSheet = self.SpriteSheet
     local columns = math.max(1, math.floor(spriteSheet.Columns))
     local rows = math.max(1, math.floor(spriteSheet.Rows))
-    local cellWidth, cellHeight = imageWidth, imageHeight
+    local alignToVelocity = self.AlignToVelocity
 
     if spriteSheet.Enabled then
         cellWidth = imageWidth / columns
@@ -322,15 +323,23 @@ function ParticleEmitter:_Render()
             renderPos = particle.Position
         end
 
+        local stretch = 1
+        local rotation = particle.Rotation
 
-        local scaledWidth, scaledHeight = cellWidth * particle.Scale.X, cellHeight * particle.Scale.Y
+        if alignToVelocity.Enabled then
+            stretch = particle.Stretch
+            rotation = particle.AlignAngle + alignToVelocity.Offset
+        end
 
+        local scaledWidth, scaledHeight =
+            cellWidth * particle.Scale.X * stretch, cellHeight * particle.Scale.Y
         local destinationQuad = DestinationQuad.NewFromRectangle(
             renderPos - Vector(scaledWidth / 2, scaledHeight / 2),
             scaledWidth,
             scaledHeight
         )
-        destinationQuad:Rotate(particle.Rotation, renderPos)
+
+        destinationQuad:Rotate(rotation, renderPos)
 
         local sourceQuad = self._EmitterSourceQuad
 
@@ -386,11 +395,14 @@ function ParticleEmitter:_UpdateParticles()
 
             local inheritedVelocity = self:_GetInheritedVelocity()
             local velocity = self:_GetParticleVelocity(particle)
+            local previousPosition = particle.Position
+
             particle.Position = particle.Position + velocity + inheritedVelocity +
                 particle.NoiseValue * self.Noise.PositionAmount
             particle.Scale = self:_GetParticleScale(particle)
             particle.Rotation = self:_GetParticleRotation(particle)
 
+            self:_UpdateAlignment(particle, particle.Position - previousPosition)
             self:_UpdateParticleColor(particle)
         end
     end
@@ -493,6 +505,8 @@ function ParticleEmitter:_InitializeParticle(particle, positionOffset)
     particle.Gravity = PaletteUtils.SampleFloat(self.GravityModifier)
     particle.Rotation = PaletteUtils.SampleFloat(self.StartRotation)
     particle.LerpFactor = PaletteUtils.GetRandom()
+    particle.AlignAngle = self.StartDirection:GetAngleDegrees() + self.Orientation
+    particle.Stretch = 1
 
     local inheritVelocity = self.InheritVelocity
 
@@ -507,6 +521,7 @@ function ParticleEmitter:_InitializeParticle(particle, positionOffset)
     end
 
     -- To prevent brief visual artifacts like new particles flickering.
+    self:_UpdateAlignment(particle, particle.Velocity)
     self:_UpdateParticleColor(particle)
     self:_UpdateSpriteSheet(particle)
     particle.Scale = self:_GetParticleScale(particle)
@@ -807,6 +822,24 @@ function ParticleEmitter:_GetSheetQuad(column, row)
     end
 
     return self._SheetQuads[index]
+end
+
+---@param particle Particle
+---@param movement Vector
+function ParticleEmitter:_UpdateAlignment(particle, movement)
+    local alignToVelocity = self.AlignToVelocity
+
+    if not alignToVelocity.Enabled then
+        return
+    end
+
+    local speed = movement:Length()
+
+    if speed > 0.0001 then
+        particle.AlignAngle = movement:GetAngleDegrees()
+    end
+
+    particle.Stretch = math.max(0, alignToVelocity.LengthScale + speed * alignToVelocity.SpeedScale)
 end
 
 return ParticleEmitter

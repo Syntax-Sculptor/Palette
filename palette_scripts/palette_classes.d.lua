@@ -19,6 +19,8 @@
 ---@field NoiseValue Vector
 ---@field SpriteFrame integer
 ---@field SpriteRow integer
+---@field AlignAngle number
+---@field Stretch number
 
 ---@alias InterpolationMode "Blend"|"Fixed"
 ---@alias CurveMode "Single"|"TwoCurves"
@@ -153,3 +155,9 @@
 ---@field StartFrame integer Default: 0
 ---@field Cycles integer Default: 1
 ---@field FrameOverTime PaletteOverLifetime<number>
+
+---@class AlignToVelocity
+---@field Enabled boolean Default: false
+---@field Offset number Default: 0
+---@field LengthScale number Default: 1
+---@field SpeedScale number Default: 0

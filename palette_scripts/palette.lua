@@ -246,6 +246,12 @@ function Palette:CreateParticleEmitter(texturePath, position)
             Cycles = 1,
             FrameOverTime = frameOverTime,
         },
+        AlignToVelocity = {
+            Enabled = false,
+            Offset = 0,
+            LengthScale = 1,
+            SpeedScale = 0,
+        },
 
         _DistanceAccumulator = 0,
         _DelayElapsed = 0,
