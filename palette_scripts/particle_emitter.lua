@@ -38,6 +38,7 @@ local PaletteNoise = include("palette_scripts.palette_noise")
 ---@field InheritVelocity InheritVelocity
 ---@field RateOverDistance number Default: 0
 ---@field Noise Noise
+---@field SpriteSheet SpriteSheet
 ---@field private _PendingDestroy boolean
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
@@ -59,6 +60,9 @@ local PaletteNoise = include("palette_scripts.palette_noise")
 ---@field private _Velocity Vector
 ---@field private _DistanceAccumulator number
 ---@field private _NoiseTime integer
+---@field private _SheetQuads SourceQuad[]
+---@field private _SheetColumns integer
+---@field private _SheetRows integer
 local ParticleEmitter = {}
 ParticleEmitter.__index = ParticleEmitter
 
@@ -298,6 +302,16 @@ end
 
 function ParticleEmitter:_Render()
     local imageWidth, imageHeight = self._RenderImage:GetWidth(), self._RenderImage:GetHeight()
+    local cellWidth, cellHeight = imageWidth, imageHeight
+    local spriteSheet = self.SpriteSheet
+    local columns = math.max(1, math.floor(spriteSheet.Columns))
+    local rows = math.max(1, math.floor(spriteSheet.Rows))
+    local cellWidth, cellHeight = imageWidth, imageHeight
+
+    if spriteSheet.Enabled then
+        cellWidth = imageWidth / columns
+        cellHeight = imageHeight / rows
+    end
 
     for _, particle in ipairs(self._Particles) do
         ---@type Vector
@@ -308,8 +322,8 @@ function ParticleEmitter:_Render()
             renderPos = particle.Position
         end
 
-        local scaledWidth, scaledHeight =
-            imageWidth * particle.Scale.X, imageHeight * particle.Scale.Y
+
+        local scaledWidth, scaledHeight = cellWidth * particle.Scale.X, cellHeight * particle.Scale.Y
 
         local destinationQuad = DestinationQuad.NewFromRectangle(
             renderPos - Vector(scaledWidth / 2, scaledHeight / 2),
@@ -318,16 +332,24 @@ function ParticleEmitter:_Render()
         )
         destinationQuad:Rotate(particle.Rotation, renderPos)
 
+        local sourceQuad = self._EmitterSourceQuad
+
+        if spriteSheet.Enabled then
+            local column = (particle.SpriteFrame or 0) % columns
+            local sheetRow = PaletteUtils.Clamp(particle.SpriteRow or 0, 0, rows - 1)
+            sourceQuad = self:_GetSheetQuad(column, sheetRow)
+        end
+
         if self.Shader then
             self._RenderImage:RenderWithShader(
-                self._EmitterSourceQuad,
+                sourceQuad,
                 destinationQuad,
                 particle.Color,
                 self.Shader,
                 self.ShaderParams
             )
         else
-            self._RenderImage:Render(self._EmitterSourceQuad, destinationQuad, particle.Color)
+            self._RenderImage:Render(sourceQuad, destinationQuad, particle.Color)
         end
     end
 end
@@ -360,6 +382,7 @@ function ParticleEmitter:_UpdateParticles()
         else
             particle.NoiseValue = self:_GetParticleNoise(particle)
             self:_ApplyParticleForce(particle)
+            self:_UpdateSpriteSheet(particle)
 
             local inheritedVelocity = self:_GetInheritedVelocity()
             local velocity = self:_GetParticleVelocity(particle)
@@ -477,8 +500,15 @@ function ParticleEmitter:_InitializeParticle(particle, positionOffset)
         particle.Velocity = particle.Velocity + self._Velocity * inheritVelocity.Multiplier
     end
 
+    local sheet = self.SpriteSheet
+
+    if sheet.Enabled and sheet.AnimationType == "SingleRow" and sheet.RowMode == "Random" then
+        particle.SpriteRow = PaletteUtils.GetRandomInt(0, sheet.Rows - 1)
+    end
+
     -- To prevent brief visual artifacts like new particles flickering.
     self:_UpdateParticleColor(particle)
+    self:_UpdateSpriteSheet(particle)
     particle.Scale = self:_GetParticleScale(particle)
 end
 
@@ -727,6 +757,56 @@ function ParticleEmitter:_UpdateDistanceEmission()
         local t = (i - before) / (distance * self.RateOverDistance)
         self:Emit(1, self._Velocity * -(1 - PaletteUtils.Clamp(t, 0, 1)))
     end
+end
+
+---@param particle Particle
+function ParticleEmitter:_UpdateSpriteSheet(particle)
+    local sheet = self.SpriteSheet
+    local columns = math.max(1, math.floor(sheet.Columns))
+    local rows = math.max(1, math.floor(sheet.Rows))
+    local t = particle.FrameCount / particle.Lifetime
+    local progress = sheet.FrameOverTime:Evaluate(t, particle.LerpFactor)
+    local totalFrames
+
+    if sheet.AnimationType == "WholeSheet" then
+        totalFrames = rows * columns
+    else
+        totalFrames = columns
+    end
+
+    local frame = math.floor(progress * sheet.Cycles * totalFrames + sheet.StartFrame) % totalFrames
+    particle.SpriteFrame = frame
+
+    if sheet.AnimationType == "WholeSheet" then
+        particle.SpriteRow = math.floor(frame / columns)
+    elseif sheet.AnimationType == "SingleRow" and sheet.RowMode == "Custom" then
+        particle.SpriteRow = sheet.Row
+    end
+end
+
+---@param column integer
+---@param row integer
+function ParticleEmitter:_GetSheetQuad(column, row)
+    local sheet = self.SpriteSheet
+    local columns = math.max(1, math.floor(sheet.Columns))
+    local rows = math.max(1, math.floor(sheet.Rows))
+
+    if columns ~= self._SheetColumns or rows ~= self._SheetRows then
+        self._SheetQuads = {}
+        self._SheetColumns = columns
+        self._SheetRows = rows
+    end
+
+    local index = row * columns + column + 1
+
+    if not self._SheetQuads[index] then
+        local width = self._RenderImage:GetWidth() / columns
+        local height = self._RenderImage:GetHeight() / rows
+        local quad = SourceQuad.NewFromRectangle(Vector(column * width, row * height), width, height)
+        self._SheetQuads[index] = quad
+    end
+
+    return self._SheetQuads[index]
 end
 
 return ParticleEmitter

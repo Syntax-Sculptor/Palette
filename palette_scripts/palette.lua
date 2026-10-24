@@ -122,6 +122,11 @@ function Palette:CreateParticleEmitter(texturePath, position)
     local forceOverLifetime = PaletteOverLifetime.New(Vector.Zero)
     forceOverLifetime.Space = "Local"
 
+    local frameOverTime = PaletteOverLifetime.New(0)
+    frameOverTime.Keys[2].Value = 1
+    frameOverTime.KeysMin[2].Value = 1
+    frameOverTime.KeysMax[2].Value = 1
+
     ---@type ParticleEmitter
     local ParticleEmitterInstance = {
         IsWorldSpace = true,
@@ -230,6 +235,17 @@ function Palette:CreateParticleEmitter(texturePath, position)
             RotationAmount = 0,
             SizeAmount = 0,
         },
+        SpriteSheet = {
+            Enabled = false,
+            Columns = 1,
+            Rows = 1,
+            AnimationType = "WholeSheet",
+            RowMode = "Random",
+            Row = 0,
+            StartFrame = 0,
+            Cycles = 1,
+            FrameOverTime = frameOverTime,
+        },
 
         _DistanceAccumulator = 0,
         _DelayElapsed = 0,
@@ -255,6 +271,9 @@ function Palette:CreateParticleEmitter(texturePath, position)
         _LastPosition = nil,
 
         _NoiseTime = 0,
+        _SheetColumns = 0,
+        _SheetRows = 0,
+        _SheetQuads = {},
     }
 
     local ParticleEmitterMT = setmetatable(ParticleEmitterInstance, ParticleEmitter)

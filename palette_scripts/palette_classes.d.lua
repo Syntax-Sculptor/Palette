@@ -17,6 +17,8 @@
 ---@field LerpFactor number
 ---@field SpawnPosition Vector
 ---@field NoiseValue Vector
+---@field SpriteFrame integer
+---@field SpriteRow integer
 
 ---@alias InterpolationMode "Blend"|"Fixed"
 ---@alias CurveMode "Single"|"TwoCurves"
@@ -26,6 +28,8 @@
 ---@alias PaletteRenderMode "AboveEntities"|"Floor"|"AbovePause"|"AboveHUD"|"MainMenu"
 ---@alias RenderSpace "Local"|"World"
 ---@alias InheritVelocityMode "Current"|"Initial"
+---@alias AnimationType "WholeSheet"|"SingleRow"
+---@alias RowMode "Custom"|"Random"
 
 ---@class PaletteGradient
 ---@field ColorKeys Keyframe<KColor>[]
@@ -138,3 +142,14 @@
 ---@field PositionAmount number Default: 1
 ---@field RotationAmount number Default: 0
 ---@field SizeAmount number Default: 0
+
+---@class SpriteSheet
+---@field Enabled boolean Default: false
+---@field Columns integer Default: 1
+---@field Rows integer Default: 1
+---@field AnimationType AnimationType Default: "WholeSheet"
+---@field RowMode RowMode Default: "Random"
+---@field Row integer Default: 0
+---@field StartFrame integer Default: 0
+---@field Cycles integer Default: 1
+---@field FrameOverTime PaletteOverLifetime<number>
