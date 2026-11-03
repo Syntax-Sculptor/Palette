@@ -98,6 +98,12 @@ function Palette:Init(mod)
     mod:AddCallback(ModCallbacks.MC_POST_UPDATE, onPostUpdate)
     mod:AddCallback(ModCallbacks.MC_PRE_NEW_ROOM, destroyNonPersistentEmitters)
     mod:AddCallback(ModCallbacks.MC_PRE_GAME_EXIT, destroyNonPersistentEmitters)
+
+    -- Only available on dev-branches.
+    -- TODO: REMOVE ME WHEN PUBLICLY AVAILABLE.
+    if ModCallbacks.MC_PRE_ROOM_RENDER_ENTITIES then
+        mod:AddCallback(ModCallbacks.MC_PRE_ROOM_RENDER_ENTITIES, onPostRoomRenderEntities)
+    end
 end
 
 --- Creates a new `ParticleEmitter`.

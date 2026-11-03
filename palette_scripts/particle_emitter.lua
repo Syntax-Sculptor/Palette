@@ -222,6 +222,7 @@ function ParticleEmitter:Destroy()
             subEmitter._IsFinished = true
         end
     end
+
     self._SubEmitters = {}
 
     if self._ParentEmitter then
@@ -286,7 +287,7 @@ function ParticleEmitter:_OnMainMenuRender()
 end
 
 function ParticleEmitter:_OnPostRoomEntitiesRender()
-    if self:IsDestroyed() or self.RenderMode ~= "AboveEntities" then
+    if self:IsDestroyed() or (self.RenderMode ~= "AboveEntities" and self.RenderMode ~= "Default") then
         return
     end
 
