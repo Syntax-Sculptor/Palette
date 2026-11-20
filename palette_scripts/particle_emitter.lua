@@ -19,30 +19,30 @@ local PaletteNoise = include("palette_scripts.palette_noise")
 ---@field StartRotation number | PaletteMinMaxFloat The initial rotation for each particle. Default: 0
 ---@field Orientation number The emitter's rotation, in degrees. This is solely used to handle how particles move out from the emitter as opposed to changing the rotation of the particle's sprite. To change the sprite's actual rotation, use `StartRotation`. Default: 0
 ---@field StartScale Vector | PaletteMinMaxVector The initial scale of spawned particles. Default: (1, 1)
----@field PersistAcrossRooms boolean Whether the particle emitter is destroyed when leaving the current room or exiting the game. Default: false
+---@field PersistAcrossRooms boolean If true, the particle emitter is not destroyed when entering a new room or exiting the urn. Default: false
 ---@field DirectionSpread number How spread out the spawned particles are relative to `StartDirection`. Default: 0
----@field SizeOverLifetime PaletteOverLifetime Attributes relating to how particles change size over their lifespan.
+---@field ScaleOverLifetime PaletteOverLifetime Attributes relating to how particles change size over their lifespan.
 ---@field RotationOverLifetime PaletteOverLifetime Attributes relating to how particles change rotation over their lifespan.
 ---@field Shape PaletteShapeConfig A module that configures its own shape, affecting the particle's spawn positions and velocity.
 ---@field RenderMode PaletteRenderMode  Determines how particles are rendered onto the screen. Default: "AboveEntities"
----@field Shader Shader?
----@field ShaderParams table<string, number|number[]>
----@field GravityModifier number | PaletteMinMaxFloat Default: 0
----@field ForceOverLifetime ForceOverLifetime
----@field LimitVelocityOverLifetime LimitVelocityOverLifetime
----@field Duration number Default: true
----@field Looping boolean Default: true
----@field Bursts PaletteBurst[] Default: {}
----@field StartDelay integer Default: 0
----@field DestroyOnFinish boolean If true, the Particle Emitter is destroyed once it reached the end of its duration and all particles has despawned. Default: false
----@field InheritVelocity InheritVelocity
----@field RateOverDistance number Default: 0
----@field Noise Noise
----@field SpriteSheet SpriteSheet
----@field AlignToVelocity AlignToVelocity
----@field SizeBySpeed SizeBySpeed
----@field RotationBySpeed RotationBySpeed
----@field ColorBySpeed ColorBySpeed
+---@field Shader Shader? Optional. The shader used for the particles spawned. Default: nil.
+---@field ShaderParams table<string, number|number[]> The parameters to pass to the Shader defined in `ParticleEmitter.Shader`.
+---@field GravityModifier number | PaletteMinMaxFloat The particle's gravity velocity. It is added to the particle's `Velocity.Y` every update. Default: 0
+---@field ForceOverLifetime ForceOverLifetime The acceleration curve added to `Velocity` every frame.
+---@field LimitVelocityOverLifetime LimitVelocityOverLifetime Defines how the particle's velocity behaves as it reaches its speed cap.
+---@field Duration number How long one emmission cycle lasts, in frames. When it's reached, the emitter restarts if `Looping` is true. Otherwise, the particle emitter stops continuously emitting particles. Burst times defined in `ParticleEmitter.Bursts` are measured within this cycle. Default: 150
+---@field Looping boolean Whether the particle emitter starts a new cycle after it continuously emits for `Duration` frames. If false, `ParticleEmitter:Play()` or `ParticleEmitter:Stop()` must be called so the particle emitter restarts its continuous emission. Default: true
+---@field Bursts PaletteBurst[] An array that defines the bursts of particles spawned at set time intervals within `ParticleEmitter.Duration`. Default: {}
+---@field StartDelay integer The number of frames the emitter waits before it starts emitting.
+---@field DestroyOnFinish boolean If true, the Particle Emitter is destroyed once it reached the end of its duration and all particles has despawned if `ParticleEmitter.Looping` is set to false. Default: false
+---@field InheritVelocity InheritVelocity Determines how the particle's velocity is affected by the emitter's own velocity.
+---@field RateOverDistance number How many particles are spawned per-pixel when the emitter moves. Default: 0
+---@field Noise Noise If enabled, allows particle movement to have organic turbulence and swirling for their velocity, rotation, and size.
+---@field SpriteSheet SpriteSheet If enabled, the emitter's texture is split into a grid of frames and the particle plays over them throughout its lifetime.
+---@field AlignToVelocity AlignToVelocity If enabled, each particle rotates to face the direction it travels in and to stretch based on its speed.
+---@field ScaleBySpeed ScaleBySpeed If enabled, determines how a particle's scale changes based on its speed.
+---@field RotationBySpeed RotationBySpeed If enabled, determines how a particle's angular velocity changes based on its speed.
+---@field ColorBySpeed ColorBySpeed If enabled, determines how a particle's color changes based on its speed.
 ---@field private _PendingDestroy boolean
 ---@field private _IsEmitting boolean Determines whether particles are being continuously emitted. Note that `ParticleEmitter:Emit` will still work even with this set to false.
 ---@field private _RenderImage Image
@@ -72,6 +72,7 @@ local PaletteNoise = include("palette_scripts.palette_noise")
 local ParticleEmitter = {}
 ParticleEmitter.__index = ParticleEmitter
 
+--- Resumes the particle emitter if it was paused.
 function ParticleEmitter:Resume()
     self._IsPaused = false
 
@@ -80,6 +81,7 @@ function ParticleEmitter:Resume()
     self._LastPosition = nil
 end
 
+--- Pauses the particle emitter.
 function ParticleEmitter:Pause()
     self._IsPaused = true
 end
@@ -103,6 +105,7 @@ function ParticleEmitter:GetFollowingEntity()
     return self._FollowingEntity
 end
 
+--- Returns whether the particle emitter is paused.
 function ParticleEmitter:IsPaused()
     return self._IsPaused
 end
@@ -119,11 +122,12 @@ function ParticleEmitter:Update()
     self:_Tick()
 end
 
+--- Returns the number of alive particles belonging to the emitter.
 function ParticleEmitter:GetParticleCount()
     return #self._Particles
 end
 
--- Restarts particle emission from the very beginning, clearing every particle.
+-- Restarts particle emission from the very beginning, clearing every particle, resetting its duration, and reenabling continuous emission. This does not unpause the particle emitter if it's paused.
 function ParticleEmitter:Restart()
     if self:IsDestroyed() then
         return
@@ -162,7 +166,7 @@ function ParticleEmitter:IsPlaying()
     return self._IsEmitting or #self._Particles > 0
 end
 
---- Resumes. continuous particle emission.
+--- Resumes continuous particle emission. If the particle emitter already
 function ParticleEmitter:Play()
     if self:IsDestroyed() then
         return
@@ -412,6 +416,9 @@ function ParticleEmitter:_UpdateParticles()
     end
 end
 
+--- Returns whether the particle emitter has finished is waiting to be destroyed.
+---
+--- **Note:** Palette already calls this and handles destroying particle emitters automatically. You usually do not need to call this.
 function ParticleEmitter:IsPendingDestroy()
     return self._PendingDestroy
 end
@@ -535,7 +542,7 @@ function ParticleEmitter:_InitializeParticle(particle, positionOffset, parentPar
             particle.Color = particle.StartColor
         end
 
-        if subEmitterEntry.InheritSize then
+        if subEmitterEntry.InheritScale then
             particle.StartScale = particle.StartScale * parentParticle.Scale
         end
 
@@ -616,19 +623,19 @@ function ParticleEmitter:_GetParticleScale(particle)
     local noise = self.Noise
     local scale = particle.StartScale
     local t = particle.FrameCount / particle.Lifetime
-    local sizeBySpeed = self.SizeBySpeed
+    local scaleBySpeed = self.ScaleBySpeed
 
-    if self.SizeOverLifetime.Enabled then
-        scale = scale * self.SizeOverLifetime:Evaluate(t, particle.LerpFactor)
+    if self.ScaleOverLifetime.Enabled then
+        scale = scale * self.ScaleOverLifetime:Evaluate(t, particle.LerpFactor)
     end
 
-    if sizeBySpeed.Enabled then
-        local speedT = self:_GetNormalizedSpeed(sizeBySpeed.SpeedRange, particle.Speed)
-        scale = scale * sizeBySpeed.Size:Evaluate(speedT, particle.LerpFactor)
+    if scaleBySpeed.Enabled then
+        local speedT = self:_GetNormalizedSpeed(scaleBySpeed.SpeedRange, particle.Speed)
+        scale = scale * scaleBySpeed.Scale:Evaluate(speedT, particle.LerpFactor)
     end
 
-    if noise.Enabled and noise.SizeAmount ~= 0 then
-        scale = scale * math.max(0, 1 + particle.NoiseValue.Y * noise.SizeAmount)
+    if noise.Enabled and noise.ScaleAmount ~= 0 then
+        scale = scale * math.max(0, 1 + particle.NoiseValue.Y * noise.ScaleAmount)
     end
 
     return scale
@@ -740,6 +747,8 @@ function ParticleEmitter:_Tick()
     self._LastPosition = Vector(self.Position.X, self.Position.Y)
 end
 
+--- Forces the particle emitter to simulate a set amount of updates before any particles are spawned.
+--- This is useful if you want to "fast-forward" the particle emitter.
 ---@param frames number
 function ParticleEmitter:Prewarm(frames)
     if self:IsDestroyed() then
@@ -903,6 +912,7 @@ function ParticleEmitter:_GetNormalizedSpeed(range, speed)
     end
 end
 
+--- Adds a sub-emitter to the particle emitter, which plays when an individual particle from the main emitter does a certain action, such as spawning or being destroyed. when calling this function, `subEmitter` is stopped and only emits when needed. Subemitters can only have one parent.
 ---@param subEmitter ParticleEmitter
 ---@param trigger SubEmitterTrigger
 ---@param options SubEmitterOptions?
@@ -924,7 +934,7 @@ function ParticleEmitter:AddSubEmitter(subEmitter, trigger, options)
     local count = options.Count or 1
     local probability = options.Probability or 1
     local inheritRotation = options.InheritRotation or false
-    local inheritSize = options.InheritSize or false
+    local inheritScale = options.InheritScale or false
     local inheritColor = options.InheritColor or false
 
     subEmitter._ParentEmitter = self
@@ -935,7 +945,7 @@ function ParticleEmitter:AddSubEmitter(subEmitter, trigger, options)
         Count = count,
         Probability = probability,
         InheritColor = inheritColor,
-        InheritSize = inheritSize,
+        InheritScale = inheritScale,
         InheritRotation = inheritRotation,
     })
 end

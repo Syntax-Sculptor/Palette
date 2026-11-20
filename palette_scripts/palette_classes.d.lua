@@ -145,7 +145,7 @@
 ---@field Damping boolean Default: false
 ---@field PositionAmount number Default: 1
 ---@field RotationAmount number Default: 0
----@field SizeAmount number Default: 0
+---@field ScaleAmount number Default: 0
 
 ---@class SpriteSheet
 ---@field Enabled boolean Default: false
@@ -164,10 +164,10 @@
 ---@field LengthScale number Default: 1
 ---@field SpeedScale number Default: 0
 
----@class SizeBySpeed
+---@class ScaleBySpeed
 ---@field Enabled boolean Default: false
 ---@field SpeedRange PaletteMinMaxFloat Default: { Min = 0, Max = 10 }
----@field Size PaletteOverLifetime<Vector>
+---@field Scale PaletteOverLifetime<Vector>
 
 ---@class RotationBySpeed
 ---@field Enabled boolean Default: false
@@ -184,7 +184,7 @@
 ---@field Count PaletteMinMaxInteger | integer? Default: 1
 ---@field Probability number? Default: 1
 ---@field InheritColor boolean? Default: false
----@field InheritSize boolean? Default: false
+---@field InheritScale boolean? Default: false
 ---@field InheritRotation boolean? Default: false
 ---@class SubEmitter
 ---@field Emitter ParticleEmitter
@@ -192,5 +192,5 @@
 ---@field Count PaletteMinMaxInteger | integer
 ---@field Probability number
 ---@field InheritColor boolean
----@field InheritSize boolean
+---@field InheritScale boolean
 ---@field InheritRotation boolean

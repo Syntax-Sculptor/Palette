@@ -8,13 +8,26 @@ local initialized = false
 ---@type ParticleEmitter[]
 local emitters = {}
 
+local function isRenderModeNormal()
+    local room = Game():GetRoom()
+    return room:GetRenderMode() == RenderMode.RENDER_NORMAL
+end
+
 local function onPostRoomRenderEntities()
+    if not isRenderModeNormal() then
+        return
+    end
+
     for _, particleEmitter in ipairs(emitters) do
         particleEmitter:_OnPostRoomEntitiesRender()
     end
 end
 
 local function onPreBackdropRenderWalls()
+    if not isRenderModeNormal() then
+        return
+    end
+
     for _, particleEmitter in ipairs(emitters) do
         particleEmitter:_OnPreBackdropRenderWalls()
     end
@@ -52,6 +65,10 @@ local function onPostUpdate()
 end
 
 local function onPostPauseScreenRender()
+    if not isRenderModeNormal() then
+        return
+    end
+
     for _, particleEmitter in ipairs(emitters) do
         particleEmitter:_OnPostPauseScreenRender()
     end
@@ -59,6 +76,10 @@ local function onPostPauseScreenRender()
 end
 
 local function onPostRender()
+    if not isRenderModeNormal() then
+        return
+    end
+
     for _, particleEmitter in ipairs(emitters) do
         particleEmitter:_OnPostRender()
     end
@@ -99,7 +120,7 @@ function Palette:Init(mod)
     mod:AddCallback(ModCallbacks.MC_PRE_NEW_ROOM, destroyNonPersistentEmitters)
     mod:AddCallback(ModCallbacks.MC_PRE_GAME_EXIT, destroyNonPersistentEmitters)
 
-    -- Only available on dev-branches.
+    -- Only available on a dev-branches of REPENTOGON (Project Babylon).
     -- TODO: REMOVE ME WHEN PUBLICLY AVAILABLE.
     if ModCallbacks.MC_PRE_ROOM_RENDER_ENTITIES then
         mod:AddCallback(ModCallbacks.MC_PRE_ROOM_RENDER_ENTITIES, onPostRoomRenderEntities)
@@ -165,7 +186,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
         StartRotation = 0,
         PersistAcrossRooms = false,
         DirectionSpread = 0,
-        SizeOverLifetime = PaletteOverLifetime.New(Vector.One),
+        ScaleOverLifetime = PaletteOverLifetime.New(Vector.One),
         RotationOverLifetime = PaletteOverLifetime.New(0),
         Shape = {
             Type = "Point",
@@ -239,7 +260,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
             Frequency = 0.02,
             PositionAmount = 1,
             RotationAmount = 0,
-            SizeAmount = 0,
+            ScaleAmount = 0,
         },
         SpriteSheet = {
             Enabled = false,
@@ -258,10 +279,10 @@ function Palette:CreateParticleEmitter(texturePath, position)
             LengthScale = 1,
             SpeedScale = 0,
         },
-        SizeBySpeed = {
+        ScaleBySpeed = {
             Enabled = false,
             SpeedRange = { Min = 0, Max = 10 },
-            Size = PaletteOverLifetime.New(Vector.One)
+            Scale = PaletteOverLifetime.New(Vector.One)
         },
         RotationBySpeed = {
             Enabled = false,
