@@ -107,7 +107,8 @@ end
 ---@param rngOrSeed RNG | integer | nil
 ---@return number
 function PaletteUtils.GetRandomInt(min, max, rngOrSeed)
-    assert(min % 1 == 0 and max % 1 == 0, "GetRandomInt requires integer bounds")
+    min = math.floor(min)
+    max = math.floor(max)
 
     if min > max then
         local old_min = min

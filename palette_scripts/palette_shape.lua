@@ -2,6 +2,19 @@ local PaletteShape = {}
 
 local PaletteUtils = include("palette_scripts.palette_utils")
 
+local MAX_CURVE_RESOLUTION = 1000
+local MAX_SIDES = 128
+
+---@param shape PaletteShapeConfig
+local function getCurveResolution(shape)
+    return PaletteUtils.Clamp(math.floor(shape.CurveResolution), 1, MAX_CURVE_RESOLUTION)
+end
+
+---@param shape PaletteShapeConfig
+local function getSideCount(shape)
+    return PaletteUtils.Clamp(math.floor(shape.Sides), 3, MAX_SIDES)
+end
+
 -- Returns how much of an elipse's outline is covered from the angle.
 ---@param angle number
 ---@param a number
@@ -204,7 +217,7 @@ end
 ---@param shape PaletteShapeConfig
 function PaletteShape.IsBezierCacheValid(shape)
     local cache = shape._BezierCache
-    local resolution = math.max(1, math.floor(shape.CurveResolution))
+    local resolution = getCurveResolution(shape)
 
     if
         resolution ~= cache.Resolution
@@ -230,7 +243,7 @@ end
 ---@param shape PaletteShapeConfig
 function PaletteShape.RebuildBezierCache(shape)
     local cache = shape._BezierCache
-    local resolution = math.max(1, math.floor(shape.CurveResolution))
+    local resolution = getCurveResolution(shape)
 
     cache.OriginalPoints = {}
     cache.ScaledPoints = {}
@@ -276,7 +289,7 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
             -- the circle's thickness.
             local angle = math.rad(PaletteUtils.GetRandomFloat(0, shape.Arc))
             local u = PaletteUtils.GetRandom()
-            local minRadius = shape.Radius * (1 - shape.RadiusThickness)
+            local minRadius = shape.Radius * (1 - PaletteUtils.Clamp(shape.RadiusThickness, 0, 1))
             local chosenRadius = math.sqrt(minRadius ^ 2 + u * (shape.Radius ^ 2 - minRadius ^ 2))
 
             local offset = Vector(
@@ -349,7 +362,7 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
         local point = Vector(randLength, 0):Rotated(orientation)
         return emitterPosition + point
     elseif shape.Type == "Polygon" then
-        local sideCount = math.max(3, math.floor(shape.Sides))
+        local sideCount = getSideCount(shape)
 
         if shape.EmitFrom == "Edge" then
             ---@type Vector[]
@@ -537,7 +550,7 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
         local point = PaletteUtils.LerpVector(a, b, t):Rotated(orientation)
         return emitterPosition + point
     elseif shape.Type == "Star" then
-        local sides = math.max(3, math.floor(shape.Sides))
+        local sides = getSideCount(shape)
         local innerRatio = math.max(0, shape.InnerRadiusRatio)
 
         if shape.EmitFrom == "Edge" then
@@ -545,10 +558,10 @@ function PaletteShape.GetSpawnPosition(shape, emitterPosition, orientation)
 
             for i = 1, sides * 2 do
                 local vertex = PaletteShape.GetStarVertex(
-                    i, 
-                    sides, 
-                    shape.Radius, 
-                    innerRatio, 
+                    i,
+                    sides,
+                    shape.Radius,
+                    innerRatio,
                     shape.Scale
                 )
                 table.insert(vertices, vertex)

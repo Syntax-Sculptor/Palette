@@ -290,12 +290,25 @@ function ParticleEmitter:_OnMainMenuRender()
     self:_Render()
 end
 
-function ParticleEmitter:_OnPostRoomEntitiesRender()
-    if self:IsDestroyed() or (self.RenderMode ~= "AboveEntities" and self.RenderMode ~= "Default") then
+function ParticleEmitter:_OnPreRoomEntitiesRender()
+    if self:IsDestroyed() or self.RenderMode ~= "Default" then
         return
     end
 
     self:_Render()
+end
+
+---@param renderDefault boolean
+function ParticleEmitter:_OnPostRoomEntitiesRender(renderDefault)
+    if self:IsDestroyed() then
+        return
+    end
+
+    local renderMode = self.RenderMode
+
+    if renderMode == "AboveEntities" or (renderDefault and renderMode == "Default") then
+        self:_Render()
+    end
 end
 
 function ParticleEmitter:_OnPreBackdropRenderWalls()
@@ -310,8 +323,7 @@ function ParticleEmitter:_Render()
     local imageWidth, imageHeight = self._RenderImage:GetWidth(), self._RenderImage:GetHeight()
     local cellWidth, cellHeight = imageWidth, imageHeight
     local spriteSheet = self.SpriteSheet
-    local columns = math.max(1, math.floor(spriteSheet.Columns))
-    local rows = math.max(1, math.floor(spriteSheet.Rows))
+    local columns, rows = self:_GetSheetSize()
     local alignToVelocity = self.AlignToVelocity
 
     if spriteSheet.Enabled then
@@ -369,7 +381,7 @@ function ParticleEmitter:_Render()
 end
 
 function ParticleEmitter:_UpdateContinuousEmission()
-    self._EmissionAccumulator = self._EmissionAccumulator + self.ParticleRate / GAME_FRAMES_PER_SECOND
+    self._EmissionAccumulator = self._EmissionAccumulator + math.max(0, self.ParticleRate) / GAME_FRAMES_PER_SECOND
 
     local particlesToEmit = math.floor(self._EmissionAccumulator)
 
@@ -478,11 +490,12 @@ function ParticleEmitter:_ApplyParticleForce(particle)
         local speedLimit = math.max(0, limitVelocityOverLifetime.MaxSpeed)
 
         if speed > speedLimit then
-            local newSpeed = PaletteUtils.Lerp(speed, speedLimit, limitVelocityOverLifetime.Dampen)
+            local newSpeed = PaletteUtils.Lerp(speed, speedLimit,
+                PaletteUtils.Clamp(limitVelocityOverLifetime.Dampen, 0, 1))
             particle.Velocity = particle.Velocity * (newSpeed / speed)
         end
 
-        particle.Velocity = particle.Velocity * (1 - limitVelocityOverLifetime.Drag)
+        particle.Velocity = particle.Velocity * (1 - PaletteUtils.Clamp(limitVelocityOverLifetime.Drag, 0, 1))
     end
 end
 
@@ -523,7 +536,7 @@ function ParticleEmitter:_InitializeParticle(particle, positionOffset, parentPar
     particle.StartColor = PaletteUtils.SampleKColor(self.StartColor)
     particle.Color = particle.StartColor
     particle.StartScale = startSize
-    particle.Lifetime = PaletteUtils.SampleInteger(self.Lifetime)
+    particle.Lifetime = math.max(1, PaletteUtils.SampleInteger(self.Lifetime))
     particle.Gravity = PaletteUtils.SampleFloat(self.GravityModifier)
     particle.Rotation = PaletteUtils.SampleFloat(self.StartRotation)
     particle.LerpFactor = PaletteUtils.GetRandom()
@@ -556,7 +569,8 @@ function ParticleEmitter:_InitializeParticle(particle, positionOffset, parentPar
     local sheet = self.SpriteSheet
 
     if sheet.Enabled and sheet.AnimationType == "SingleRow" and sheet.RowMode == "Random" then
-        particle.SpriteRow = PaletteUtils.GetRandomInt(0, sheet.Rows - 1)
+        local _, rows = self:_GetSheetSize()
+        particle.SpriteRow = PaletteUtils.GetRandomInt(0, rows - 1)
     end
 
     -- To prevent brief visual artifacts like new particles flickering.
@@ -665,6 +679,8 @@ function ParticleEmitter:_GetParticleRotation(particle)
 end
 
 function ParticleEmitter:_UpdateBursts()
+    local duration = math.max(1, self.Duration)
+
     for i, burst in ipairs(self.Bursts) do
         local numCyclesFired = self._BurstCycles[i] or 0
         local cycles = burst.Cycles or 1
@@ -677,12 +693,12 @@ function ParticleEmitter:_UpdateBursts()
 
             -- Prevent particle spawning if the burst at the end or past the cycle or the burst
             -- isn't scheuduled.
-            if fireTime >= self.Duration or fireTime >= self._EmitterTime + 1 then
+            if not (fireTime < duration and fireTime < self._EmitterTime + 1) then
                 break
             end
 
             if PaletteUtils.GetRandom() < probability then
-                local count = PaletteUtils.SampleInteger(burst.Count)
+                local count = PaletteUtils.SampleInteger(burst.Count or 1)
                 self:Emit(count)
             end
 
@@ -732,7 +748,7 @@ function ParticleEmitter:_Tick()
             self:_UpdateDistanceEmission()
             self._EmitterTime = self._EmitterTime + 1
 
-            if self._EmitterTime >= self.Duration then
+            if self._EmitterTime >= math.max(1, self.Duration) then
                 if self.Looping then
                     self._EmitterTime = 0
                     self._BurstCycles = {}
@@ -805,7 +821,9 @@ function ParticleEmitter:_GetInheritedVelocity()
 end
 
 function ParticleEmitter:_UpdateDistanceEmission()
-    if self.RateOverDistance <= 0 then
+    local rate = math.max(0, self.RateOverDistance)
+
+    if rate <= 0 then
         return
     end
 
@@ -816,13 +834,13 @@ function ParticleEmitter:_UpdateDistanceEmission()
     end
 
     local before = self._DistanceAccumulator
-    local total = before + distance * self.RateOverDistance
+    local total = before + distance * rate
     local count = math.floor(total)
 
     self._DistanceAccumulator = total - count
 
     for i = 1, count do
-        local t = (i - before) / (distance * self.RateOverDistance)
+        local t = (i - before) / (distance * rate)
         self:Emit(1, self._Velocity * -(1 - PaletteUtils.Clamp(t, 0, 1)))
     end
 end
@@ -830,8 +848,7 @@ end
 ---@param particle Particle
 function ParticleEmitter:_UpdateSpriteSheet(particle)
     local sheet = self.SpriteSheet
-    local columns = math.max(1, math.floor(sheet.Columns))
-    local rows = math.max(1, math.floor(sheet.Rows))
+    local columns, rows = self:_GetSheetSize()
     local t = particle.FrameCount / particle.Lifetime
     local progress = sheet.FrameOverTime:Evaluate(t, particle.LerpFactor)
     local totalFrames
@@ -848,16 +865,21 @@ function ParticleEmitter:_UpdateSpriteSheet(particle)
     if sheet.AnimationType == "WholeSheet" then
         particle.SpriteRow = math.floor(frame / columns)
     elseif sheet.AnimationType == "SingleRow" and sheet.RowMode == "Custom" then
-        particle.SpriteRow = sheet.Row
+        particle.SpriteRow = PaletteUtils.Clamp(math.floor(sheet.Row), 0, rows - 1)
     end
+end
+
+---@return integer columns
+---@return integer rows
+function ParticleEmitter:_GetSheetSize()
+    local sheet = self.SpriteSheet
+    return math.max(1, math.floor(sheet.Columns)), math.max(1, math.floor(sheet.Rows))
 end
 
 ---@param column integer
 ---@param row integer
 function ParticleEmitter:_GetSheetQuad(column, row)
-    local sheet = self.SpriteSheet
-    local columns = math.max(1, math.floor(sheet.Columns))
-    local rows = math.max(1, math.floor(sheet.Rows))
+    local columns, rows = self:_GetSheetSize()
 
     if columns ~= self._SheetColumns or rows ~= self._SheetRows then
         self._SheetQuads = {}

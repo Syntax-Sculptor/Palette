@@ -5,6 +5,11 @@ local PaletteGradient = include("palette_scripts.palette_gradient")
 
 local initialized = false
 
+-- Only available on a dev-branches of REPENTOGON (Project Babylon).
+-- TODO: REMOVE ME WHEN PUBLICLY AVAILABLE.
+---@diagnostic disable-next-line: undefined-field
+local hasPreRoomRenderEntities = ModCallbacks.MC_PRE_ROOM_RENDER_ENTITIES ~= nil
+
 ---@type ParticleEmitter[]
 local emitters = {}
 
@@ -13,13 +18,23 @@ local function isRenderModeNormal()
     return room:GetRenderMode() == RenderMode.RENDER_NORMAL
 end
 
+local function onPreRoomRenderEntities()
+    if not isRenderModeNormal() then
+        return
+    end
+
+    for _, particleEmitter in ipairs(emitters) do
+        particleEmitter:_OnPreRoomEntitiesRender()
+    end
+end
+
 local function onPostRoomRenderEntities()
     if not isRenderModeNormal() then
         return
     end
 
     for _, particleEmitter in ipairs(emitters) do
-        particleEmitter:_OnPostRoomEntitiesRender()
+        particleEmitter:_OnPostRoomEntitiesRender(not hasPreRoomRenderEntities)
     end
 end
 
@@ -57,7 +72,11 @@ local function onPostUpdate()
     for _, particleEmitter in ipairs(emitters) do
         -- In cases where render modei s HUD-related we don't want the update callback to also call
         -- this.
-        if particleEmitter.RenderMode == "AboveEntities" or particleEmitter.RenderMode == "Floor" then
+        if
+            particleEmitter.RenderMode == "AboveEntities"
+            or particleEmitter.RenderMode == "Default"
+            or particleEmitter.RenderMode == "Floor"
+        then
             particleEmitter:Update()
         end
     end
@@ -120,10 +139,9 @@ function Palette:Init(mod)
     mod:AddCallback(ModCallbacks.MC_PRE_NEW_ROOM, destroyNonPersistentEmitters)
     mod:AddCallback(ModCallbacks.MC_PRE_GAME_EXIT, destroyNonPersistentEmitters)
 
-    -- Only available on a dev-branches of REPENTOGON (Project Babylon).
-    -- TODO: REMOVE ME WHEN PUBLICLY AVAILABLE.
-    if ModCallbacks.MC_PRE_ROOM_RENDER_ENTITIES then
-        mod:AddCallback(ModCallbacks.MC_PRE_ROOM_RENDER_ENTITIES, onPostRoomRenderEntities)
+
+    if hasPreRoomRenderEntities then
+        mod:AddCallback(ModCallbacks.MC_PRE_ROOM_RENDER_ENTITIES, onPreRoomRenderEntities)
     end
 end
 
@@ -230,7 +248,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
                 TotalLength = 0,
             },
         },
-        RenderMode = "AboveEntities",
+        RenderMode = "Default",
         Shader = nil,
         ShaderParams = {},
         GravityModifier = 0,
