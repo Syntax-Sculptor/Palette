@@ -141,6 +141,7 @@ function Palette:Init(mod)
 
 
     if hasPreRoomRenderEntities then
+        ---@diagnostic disable-next-line: undefined-field
         mod:AddCallback(ModCallbacks.MC_PRE_ROOM_RENDER_ENTITIES, onPreRoomRenderEntities)
     end
 end
