@@ -4,10 +4,6 @@
 
 <h1 align="center">Palette</h1>
 
-
-> [!WARNING]
-> Palette is currently under active development. While there are no glaring bugs and can be used for production, the API is subject to change as more updates come out.
-
 https://github.com/user-attachments/assets/a982abbc-034d-4144-bd9b-c15a88069f06
 
 ---
