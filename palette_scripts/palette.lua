@@ -74,7 +74,7 @@ local function onPostUpdate()
         -- this.
         if
             particleEmitter.RenderMode == "AboveEntities"
-            or particleEmitter.RenderMode == "Default"
+            or particleEmitter.RenderMode == "BehindEntities"
             or particleEmitter.RenderMode == "Floor"
         then
             particleEmitter:Update()
@@ -249,7 +249,7 @@ function Palette:CreateParticleEmitter(texturePath, position)
                 TotalLength = 0,
             },
         },
-        RenderMode = "Default",
+        RenderMode = "AboveEntities",
         Shader = nil,
         ShaderParams = {},
         GravityModifier = 0,

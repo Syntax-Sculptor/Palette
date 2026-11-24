@@ -291,7 +291,7 @@ function ParticleEmitter:_OnMainMenuRender()
 end
 
 function ParticleEmitter:_OnPreRoomEntitiesRender()
-    if self:IsDestroyed() or self.RenderMode ~= "Default" then
+    if self:IsDestroyed() or self.RenderMode ~= "BehindEntities" then
         return
     end
 
@@ -306,7 +306,7 @@ function ParticleEmitter:_OnPostRoomEntitiesRender(renderDefault)
 
     local renderMode = self.RenderMode
 
-    if renderMode == "AboveEntities" or (renderDefault and renderMode == "Default") then
+    if renderMode == "AboveEntities" or (renderDefault and renderMode == "BehindEntities") then
         self:_Render()
     end
 end
@@ -804,7 +804,8 @@ function ParticleEmitter:_GetParticleNoise(particle)
     local strength = noise.Strength
 
     if noise.Damping then
-        strength = strength * noise.Frequency
+        -- Higher frequencies reduce the strength proportionally, as in Unity.
+        strength = strength / math.max(noise.Frequency, 0.0001)
     end
 
     return Vector(cx, cy) * strength

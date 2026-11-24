@@ -28,7 +28,7 @@
 ---@alias PaletteShapeType "Point"|"Circle"|"Rectangle"|"Triangle"|"Line"|"Polygon"|"Capsule"|"Bezier"|"Polyline"|"Star"
 ---@alias DirectionMode "Radial"|"Default"
 ---@alias EmitFrom "Area"|"Edge"
----@alias PaletteRenderMode "AboveEntities"|"Floor"|"AbovePause"|"AboveHUD"|"MainMenu"|"Default"
+---@alias PaletteRenderMode "AboveEntities"|"Floor"|"AbovePause"|"AboveHUD"|"MainMenu"|"BehindEntities"
 ---@alias RenderSpace "Local"|"World"
 ---@alias InheritVelocityMode "Current"|"Initial"
 ---@alias AnimationType "WholeSheet"|"SingleRow"
