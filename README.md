@@ -31,18 +31,6 @@ Palette:Init(TestMod)
 
 And you're done! To get started with using Palette, you can [check out the Wiki](https://github.com/Syntax-Sculptor/Palette/wiki)!
 
-## Planned Features / Roadmap
-
-**Planned Features**
-
-- The ability to have particles render behind specific entities.
-- The ability to configure particle shapes.
-- The ability to have particles play proper animations.
-- The ability to randomize particle properties
-- A standalone desktop application that allows you to create, configure, and preview particle effects before exporting them to Lua.
-- And more?
-
-
 ## Contribution Policy
 
 Palette is currently in very early development. However, anyone is welcome to jump aboard and contribute! Before getting started, please follow these guidelines:
