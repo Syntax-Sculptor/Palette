@@ -33,7 +33,7 @@ And you're done! To get started with using Palette, you can [check out the Wiki]
 
 ## Contribution Policy
 
-Palette is currently in very early development. However, anyone is welcome to jump aboard and contribute! Before getting started, please follow these guidelines:
+While Palette is still under development, anyone is welcome to jump aboard and contribute! Before getting started, please follow these guidelines:
 
 - Please open a GitHub Issue to discuss major features or architectural changes before implementation.
     - Generally speaking, this should be done for any major new features so you don't waste your time implementing a new feature that doesn't align with the library's vision.
