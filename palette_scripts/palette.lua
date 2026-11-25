@@ -13,13 +13,21 @@ local hasPreRoomRenderEntities = ModCallbacks.MC_PRE_ROOM_RENDER_ENTITIES ~= nil
 ---@type ParticleEmitter[]
 local emitters = {}
 
-local function isRenderModeNormal()
+-- In flooded rooms, `MC_PRE_ROOM_RENDER_ENTITIES` is only called for
+-- `RenderMode.RENDER_WATER_ABOVE`, and for `MC_PRE_BACKDROP_RENDER_WALLS`, it's called for both
+-- `RenderMode.RENDER_WATER_ABOVE` and `RenderMode.RENDER_WATER_REFRACT`. Because of this, we need
+-- to account for it so particles don't render twice.
+--
+-- If it's `RenderMode.RENDER_NORMAL`, then it should be safe to render.
+local function canRender()
     local room = Game():GetRoom()
-    return room:GetRenderMode() == RenderMode.RENDER_NORMAL
+    local renderMode = room:GetRenderMode()
+    return renderMode == RenderMode.RENDER_NORMAL
+        or (room:HasWater() and renderMode == RenderMode.RENDER_WATER_ABOVE)
 end
 
 local function onPreRoomRenderEntities()
-    if not isRenderModeNormal() then
+    if not canRender() then
         return
     end
 
@@ -29,7 +37,7 @@ local function onPreRoomRenderEntities()
 end
 
 local function onPostRoomRenderEntities()
-    if not isRenderModeNormal() then
+    if not canRender() then
         return
     end
 
@@ -39,7 +47,7 @@ local function onPostRoomRenderEntities()
 end
 
 local function onPreBackdropRenderWalls()
-    if not isRenderModeNormal() then
+    if not canRender() then
         return
     end
 
@@ -84,7 +92,7 @@ local function onPostUpdate()
 end
 
 local function onPostPauseScreenRender()
-    if not isRenderModeNormal() then
+    if not canRender() then
         return
     end
 
@@ -95,7 +103,7 @@ local function onPostPauseScreenRender()
 end
 
 local function onPostRender()
-    if not isRenderModeNormal() then
+    if not canRender() then
         return
     end
 
